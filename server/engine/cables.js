@@ -83,7 +83,8 @@ export function projectForRole(p, role, state) {
   if (role === 'interpreter')
     return { kind: type, cables: p.cables.map((c) => ({ pos: c.pos, color: c.color })), cut: state.cut };
   if (role === 'expert') return { kind: type, steps: p.cuts, analyst: p.teamSize === 4 };
-  if (role === 'analyst') return { kind: type, params: p.params, step: state.cut.length };
+  // el parámetro de cada paso solo se revela cuando llega ese paso: el analista debe dar uno nuevo en cada corte
+  if (role === 'analyst') return { kind: type, total: p.cuts, step: state.cut.length, params: p.params.slice(0, Math.min(state.cut.length + 1, p.cuts)) };
   return null;
 }
 

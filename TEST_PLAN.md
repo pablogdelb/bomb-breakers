@@ -1,6 +1,6 @@
 # Plan de pruebas
 
-## Automáticas (`npm test`, 39 tests)
+## Automáticas (`npm test`, 43 tests)
 **Motor (`test/engine.test.js`)**
 - 200 bombas por cada combinación dificultad × tamaño de equipo (6 combinaciones): generación determinista por semilla, estructura correcta (nº de módulos, protocolo solo en normal/difícil), y **resolubilidad**: la solución de `solve()` es aceptada paso a paso por `validateAction`.
 - Verificadores **independientes** (reimplementados de otro modo) para cables, caja fuerte, simón, protocolo; circuito comprobado por **búsqueda exhaustiva** frente al solver GF(2); jeroglíficos con conjunto correcto único.
@@ -17,10 +17,11 @@
 - Temporizador del servidor (reloj acelerado): si nadie desactiva, ambos pierden por tiempo.
 - Reconexión: recuperar sesión con token conserva asiento/rol/estado; segunda pestaña sustituye a la primera sin duplicar; token falso rechazado; la partida continúa si el anfitrión se desconecta.
 - Modo cooperativo (1 equipo de 3 y de 4): inicio, victoria, derrota por errores, revancha, puestos azules rechazados, cambio de modo, límite de creación de salas por IP.
+- Calibraciones (reloj x10): el código solo llega al analista (intérprete en 3v3); el operador no lo recibe; código erróneo = error y sigue activa; correcto = calibrado; vence = error; solo el operador teclea; entradas malformadas rechazadas. Cables: el analista solo ve el parámetro del paso actual.
 - Lobby: nombres duplicados, sala llena (8), sala inexistente, inicio con equipos incompletos, analista inválido en 3v3, solo el anfitrión configura, intercambio de puestos, JSON inválido, saneado de nombres, límite de peticiones.
 
 ## E2E (`npm run test:e2e`)
-8 contextos Chromium con viewport iPhone 13 juegan una partida 4v4 difícil **solo a través de la interfaz**: crear sala, unirse por enlace de invitación, elegir puestos, listos, iniciar, comprobar que el DOM del operador no contiene colores, explosión del equipo azul por 3 errores, el rojo comete 1 error y resuelve los 6 módulos pulsando la UI, pantalla de resultados, revancha con bomba nueva y recarga de página con recuperación de sesión. Falla si hay errores de JS en consola. Genera capturas en `e2e/shots/`. `e2e/coop.mjs` hace lo mismo en modo cooperativo con 3 móviles (fácil) hasta la pantalla de victoria.
+8 contextos Chromium con viewport iPhone 13 juegan una partida 4v4 difícil **solo a través de la interfaz**: crear sala, unirse por enlace de invitación, elegir puestos, listos, iniciar, comprobar que el DOM del operador no contiene colores, explosión del equipo azul por 3 errores, el rojo comete 1 error y resuelve los 6 módulos pulsando la UI, pantalla de resultados, revancha con bomba nueva y recarga de página con recuperación de sesión. Falla si hay errores de JS en consola. Genera capturas en `e2e/shots/`. `e2e/coop.mjs` hace lo mismo en modo cooperativo con 4 móviles (con analista, fácil) hasta la victoria, atendiendo una calibración: el analista lee el código en su pantalla, el operador lo teclea y se comprueba que ni el operador ni el experto lo ven.
 
 ## Manuales (no automatizables) — pendientes de hacer con personas
 - Partida real con 6–8 personas en sus móviles (iOS Safari y Android Chrome).

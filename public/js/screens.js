@@ -1,10 +1,10 @@
 import { h, clear, fill, fmtTime, store } from './dom.js';
 import { sfx, settings, setSound, setMotion } from './sound.js';
 import { heroBomb } from './art.js';
-import { createModule } from './modules.js';
+import { createModule, keypad } from './modules.js';
 import { expertPage, analystSheet, roleCard, gestureGuide, ROLES, MODULE_SHORT, MODULE_TITLES } from './manual.js';
 
-export const BUILD = '2026.10.30-dificil1';
+export const BUILD = '2026.10.30-analista2';
 export const TEAM_NAME = { red: 'EQUIPO ROJO', blue: 'EQUIPO AZUL' };
 const DIFF_NAME = { easy: 'FÁCIL · 12 min', normal: 'NORMAL · 10 min', hard: 'DIFÍCIL · 8 min' };
 const ROLE_ORDER = ['operator', 'expert', 'interpreter', 'analyst'];
@@ -135,7 +135,7 @@ const RULEBAR = {
   operator: 'Eres el CIEGO: tú manipulas la bomba. Escucha a tu intérprete.',
   expert: 'Eres el MUDO: solo gestos. Aplica el manual.',
   interpreter: 'Eres el SORDO: gestos al experto, voz al operador.',
-  analyst: 'Solo puedes comunicar tus datos al experto con gestos.',
+  analyst: 'Tus datos y los CÓDIGOS DE CALIBRACIÓN: solo gestos al experto.',
 };
 
 export function createGame({ net }) {
@@ -151,12 +151,14 @@ export function createGame({ net }) {
   const rule = h('div', { class: 'rulebar' });
   const stage = h('div', { class: 'stage', 'data-testid': 'stage' });
   const overlay = h('div');
+  const calPanel = h('div');
+  let calKey = null, calCountEl = null, calIdleEl = null, calEnd = 0, calNext = 0;
   const foot = h('div', { class: 'foot' },
     h('button', { class: 'btn ghost small', onclick: () => st?.me.role && modal(roleCard(st.me.role)) }, 'ROL'),
     h('button', { class: 'btn ghost small', onclick: () => modal(gestureGuide()) }, '🖐 GESTOS'),
     h('button', { class: 'btn ghost small', onclick: (e) => { setSound(!settings.sound); e.target.textContent = settings.sound ? '🔊' : '🔇'; } }, settings.sound ? '🔊' : '🔇'),
     h('button', { class: 'btn ghost small', onclick: (e) => { setMotion(!settings.motion); e.target.textContent = settings.motion ? '✨' : '▫️'; } }, settings.motion ? '✨' : '▫️'));
-  el.append(hud, race, slots, modname, rule, stage, foot, overlay);
+  el.append(hud, race, slots, modname, rule, calPanel, stage, foot, overlay);
 
   const ctx = { send: (action) => net.send({ t: 'action', id: Math.random().toString(36).slice(2, 12), action }) };
 
@@ -169,6 +171,8 @@ export function createGame({ net }) {
     const left = live ? t.deadline - now : st.room.status === 'countdown' ? st.match.durationMs : Math.max(0, t.deadline - (t.finishedMs != null ? st.match.startsAt + t.finishedMs : now));
     timer.textContent = fmtTime(left);
     timer.classList.toggle('low', live && left < 30000);
+    if (calCountEl) calCountEl.textContent = fmtTime(calEnd - now);
+    if (calIdleEl) calIdleEl.textContent = fmtTime(calNext - now);
     if (live) {
       const sec = Math.ceil(left / 1000);
       if (sec !== lastTick) { lastTick = sec; if (left < 11000) sfx.tickUrgent(); else sfx.tick(); }
@@ -207,6 +211,40 @@ export function createGame({ net }) {
         h('p', { class: 'dim', 'data-opp': 1 }, oppText(newSt))));
     }
   }
+  function renderCal(st) {
+    const c = st.calibration, role = st.me.role;
+    const holder = role === (st.room.teamSize === 4 ? 'analyst' : 'interpreter');
+    let key = 'none';
+    if (c && role === 'operator' && c.status === 'pending') key = `op:${c.end}`;
+    else if (c && holder) key = c.status === 'pending' ? `h:${c.end}` : `hi:${c.nextAt}`;
+    calEnd = c && c.status === 'pending' ? c.end : 0;
+    calNext = c && holder && c.status !== 'pending' ? c.nextAt : 0;
+    if (key === calKey) return;
+    calKey = key; calCountEl = null; calIdleEl = null;
+    clear(calPanel);
+    if (key === 'none') return;
+    if (key.startsWith('op:')) {
+      calCountEl = h('span', { class: 'calcount', 'data-testid': 'cal-count' });
+      const pad = keypad({ n: c.digits, label: 'ENVIAR CÓDIGO', testid: 'cal', prefix: 'cal-key', onSubmit: (digits) => ctx.send({ type: 'calibrate', digits }) });
+      calPanel.append(h('div', { class: 'panel cal', 'data-testid': 'cal-operator' },
+        h('div', { class: 'row', style: { justifyContent: 'space-between' } }, h('b', { class: 'label', style: { color: 'var(--amber)' } }, '⚠ CALIBRACIÓN URGENTE'), calCountEl),
+        h('p', { class: 'dim', style: { fontSize: '12px', margin: '4px 0 8px' } }, st.room.teamSize === 4 ? 'Pide a tu intérprete el código de calibración (lo ve el analista).' : 'Pide a tu intérprete el código de calibración.'), pad.el));
+    } else if (key.startsWith('h:')) {
+      calCountEl = h('span', { class: 'calcount', 'data-testid': 'cal-count' });
+      calPanel.append(h('div', { class: 'panel cal', 'data-testid': 'cal-holder' },
+        h('div', { class: 'row', style: { justifyContent: 'space-between' } }, h('b', { class: 'label', style: { color: 'var(--amber)' } }, '⚠ CALIBRACIÓN URGENTE'), calCountEl),
+        h('div', { class: 'calcode', 'data-testid': 'cal-code' }, c.code.join(' ')),
+        h('p', { class: 'dim', style: { fontSize: '12px', margin: '0' } }, role === 'analyst'
+          ? 'Pásale este código al EXPERTO con gestos (cifra a cifra, rápido). Él se lo dará al intérprete y este al operador, que lo teclea.'
+          : 'Díselo en voz alta al OPERADOR antes de que acabe el tiempo.')));
+    } else {
+      calIdleEl = h('b', { class: 'mono', 'data-testid': 'cal-next' });
+      calPanel.append(h('div', { class: 'panel cal idle', 'data-testid': 'cal-idle' },
+        h('div', { class: 'row', style: { justifyContent: 'space-between' } }, h('span', { class: 'label' }, 'PRÓXIMA CALIBRACIÓN EN'), calIdleEl),
+        c.last === 'ok' ? h('div', { class: 'dim', style: { fontSize: '12px' } }, '✔ Última calibración correcta') : c.last === 'failed' ? h('div', { style: { fontSize: '12px', color: 'var(--bad)' } }, '✖ Última calibración fallida') : null));
+    }
+  }
+
   function oppText(s) {
     const opp = s.match.teams[s.me.team === 'red' ? 'blue' : 'red'];
     if (!opp) return '';
@@ -236,6 +274,7 @@ export function createGame({ net }) {
     clear(slots);
     (match.modules || []).forEach((m, i) => slots.append(h('div', { class: `slot ${i < t.moduleIndex ? 'done' : i === t.moduleIndex && t.status === 'playing' ? 'cur' : ''}` }, i < t.moduleIndex ? '✔' : MODULE_SHORT[m])));
     renderOverlay(st);
+    renderCal(st);
     rule.textContent = RULEBAR[me.role];
 
     if (st.module) {
@@ -294,6 +333,11 @@ export function createGame({ net }) {
         if (mine) { sfx.penalty(); document.body.append(h('div', { class: 'flash' })); setTimeout(() => document.querySelector('.flash')?.remove(), 1000); el.classList.add('shake'); setTimeout(() => el.classList.remove('shake'), 500); banner('⏱ ¡PENALIZACIÓN! −20 SEGUNDOS', 'bad'); }
         else toast(`${TEAM_NAME[f.team]}: −20 s de penalización`);
         break;
+      case 'calibration':
+        if (mine && (st.me.role === 'operator' || st.me.role === (st.room.teamSize === 4 ? 'analyst' : 'interpreter'))) { sfx.alarm(); banner('⚠ ¡CALIBRACIÓN!', 'bad'); }
+        break;
+      case 'calok': if (mine) { sfx.solved(); banner('✔ CALIBRADO', 'good'); } break;
+      case 'calfail': if (mine) banner('✖ CALIBRACIÓN PERDIDA', 'bad'); break;
       case 'step': if (mine) sfx.step(); break;
       case 'solved': if (mine) { sfx.solved(); banner('✔ MÓDULO DESACTIVADO', 'good'); } else { sfx.blip(); toast(`${TEAM_NAME[f.team]} ha desactivado un módulo`); } break;
       case 'boom': if (!mine) { toast(`💥 ¡La bomba del ${TEAM_NAME[f.team]} ha explotado!`); } break;

@@ -16,7 +16,7 @@ import { BUILD } from './build.js';
 export { BUILD };
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
-export function createGameServer({ port = Number(process.env.PORT || 3000), host = '0.0.0.0', fixedSeed = null, timeScale, createLimit = 10 } = {}) {
+export function createGameServer({ port = Number(process.env.PORT || 3000), host = '0.0.0.0', fixedSeed = null, timeScale, createLimit = 10, calibration = true } = {}) {
   const rooms = new Map();
   const clients = new Set();
   const ipCreates = new Map();
@@ -102,7 +102,7 @@ export function createGameServer({ port = Number(process.env.PORT || 3000), host
           if (hits.length >= createLimit) return err('rate_limited', 'Demasiadas salas creadas, espera un minuto');
           hits.push(nowMs()); ipCreates.set(ip, hits);
           if (rooms.size >= 500) return err('busy', 'Servidor lleno, inténtalo más tarde');
-          const room = new Room(newCode(), { fixedSeed, timeScale });
+          const room = new Room(newCode(), { fixedSeed, timeScale, calibration });
           wire(room);
           const r = room.addPlayer(msg.name);
           if (r.error) return err(r.error.code, r.error.message);

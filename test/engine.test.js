@@ -374,9 +374,22 @@ test('el analista es imprescindible en 4 jugadores: CADA dato suyo cambia la res
   }
 });
 
+test('cables: el analista solo ve el parámetro del paso actual y se revela uno nuevo en cada corte', () => {
+  for (const b of bombs('hard', 4, 40)) for (const m of b.modules.filter((x) => x.type === 'cables')) {
+    let st = initModuleState(m);
+    for (let i = 0; i < m.puzzle.cuts; i++) {
+      const v = projectModule(m, 'analyst', st);
+      assert.equal(v.step, i);
+      assert.deepEqual(v.params, m.puzzle.params.slice(0, i + 1), 'solo se han revelado los pasos hasta el actual');
+      assert.equal(v.total, m.puzzle.cuts);
+      st = validateModuleAction(m, st, { type: 'cut', pos: m.puzzle.answer[i] }).state;
+    }
+  }
+});
+
 test('el analista tiene más trabajo: varios datos por módulo', () => {
   const count = (m, v) => {
-    if (m === 'cables') return v.params.length;
+    if (m === 'cables') return v.total;
     if (m === 'safe') return v.params.length;
     if (m === 'simon') return 2;
     if (m === 'circuit') return Math.max(1, v.flip.length);

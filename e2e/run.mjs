@@ -8,7 +8,7 @@ const { createGameServer } = await import('../server/index.js');
 const { solveModule } = await import('../server/engine/index.js');
 const SHOTS = new URL('./shots/', import.meta.url).pathname;
 mkdirSync(SHOTS, { recursive: true });
-const g = await createGameServer({ port: 0 });
+const g = await createGameServer({ port: 0, calibration: false }); // las calibraciones se prueban en coop.mjs
 const base = `http://127.0.0.1:${g.port}`;
 const exe = process.env.CHROMIUM_PATH || (existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined);
 const browser = await chromium.launch({ args: ['--no-sandbox'], executablePath: exe });

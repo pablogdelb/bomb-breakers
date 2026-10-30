@@ -6,9 +6,11 @@ import assert from 'node:assert/strict';
 import { Bot, fullRoom, sleep } from './helpers.js';
 import { solveModule, DIFFICULTIES } from '../server/engine/index.js';
 
-let g, gFast; // gFast: reloj acelerado (8 min -> 4.8 s) para probar el temporizador real
-test.before(async () => { g = await createGameServer({ port: 0, createLimit: 1000 }); gFast = await createGameServer({ port: 0, timeScale: 0.008, createLimit: 1000 }); });
-test.after(async () => { await g.close(); await gFast.close(); });
+let g, gFast, gCal; // gFast: reloj acelerado (8 min -> 4.8 s) para probar el temporizador real
+test.before(async () => { g = await createGameServer({ port: 0, createLimit: 1000, calibration: false });
+  gFast = await createGameServer({ port: 0, timeScale: 0.008, createLimit: 1000, calibration: false });
+  gCal = await createGameServer({ port: 0, timeScale: 0.1, createLimit: 1000 }); /* reloj x10: calibraciones cada ~6 s */ });
+test.after(async () => { await g.close(); await gFast.close(); await gCal.close(); });
 
 const matchOf = (host) => g.rooms.get(host.code).match;
 const act = (op, action, id) => op.send({ t: 'action', id: id || Math.random().toString(36).slice(2), action });
@@ -336,4 +338,76 @@ test('límite de creación de salas por IP', async () => {
   await extra.until((b) => b.errors.some((e) => e.code === 'rate_limited'), 1500);
   [...bots, extra].forEach((b) => b.close());
   await lim.close();
+});
+
+
+// ---- Calibraciones: la tarea continua del analista ----
+test('calibraciones 4v4: el código solo lo ve el analista; el operador lo teclea; errores y tiempo cuentan', async () => {
+  const room = await fullRoom(gCal.port, 4, 'normal');
+  const { bots, host, by } = room;
+  await startAndWait(room);
+  const an = by.red.analyst, op = by.red.operator;
+  await an.until((b) => b.state.calibration?.status === 'pending', 8000, 'calibración del analista');
+  const code = an.state.calibration.code;
+  assert.equal(code.length, 2);
+  await op.until((b) => b.state.calibration?.status === 'pending', 2000, 'calibración del operador');
+  assert.equal(op.state.calibration.code, undefined, 'el operador no recibe el código');
+  assert.ok(!JSON.stringify(op.state).includes(`"code":[${code.join(',')}]`));
+  assert.equal(by.red.expert.state.calibration, undefined);
+  assert.equal(by.red.interpreter.state.calibration, undefined);
+  // el código es determinista por equipo y evento (el servidor lo recalcula)
+  const r = gCal.rooms.get(host.code);
+  assert.deepEqual(r.calCode('red', r.match.teams.red.cal.k), code);
+  // código equivocado: suma un error y la calibración sigue activa
+  act(op, { type: 'calibrate', digits: code.map((d, i) => (i ? d : (d + 1) % 10)) });
+  await op.until((b) => b.state.match.teams.red.errors === 1, 2000, 'error por código erróneo');
+  assert.equal(op.state.calibration.status, 'pending');
+  // código correcto: calibrado
+  act(op, { type: 'calibrate', digits: code });
+  await op.until((b) => b.state.calibration?.status === 'idle', 2000, 'calibrado');
+  await op.until((b) => b.fx.some((f) => f.kind === 'calok' && f.team === 'red'), 1000, 'fx calok');
+  assert.equal(op.state.match.teams.red.errors, 1);
+  // ahora no hay calibración activa: se rechaza
+  op.rejected.length = 0;
+  act(op, { type: 'calibrate', digits: code });
+  await op.until((b) => b.rejected.some((x) => x.code === 'no_calibration'), 1000, 'rechazo sin calibración');
+  // el analista ve cuándo llega la siguiente
+  assert.ok(an.state.calibration.nextAt > an.state.now);
+  // si no se atiende la siguiente, vence y suma error
+  await op.until((b) => b.fx.some((f) => f.kind === 'calfail' && f.team === 'red'), 15000, 'calibración vencida');
+  await op.until((b) => b.state.match.teams.red.errors >= 2, 1000, 'error por vencer');
+  bots.forEach((b) => b.close());
+});
+
+test('calibraciones 3v3: sin analista el código lo recibe el intérprete', async () => {
+  const room = await fullRoom(gCal.port, 3, 'normal');
+  const { bots, by } = room;
+  await startAndWait(room);
+  assert.equal(by.red.analyst, undefined);
+  const it = by.red.interpreter, op = by.red.operator;
+  await it.until((b) => b.state.calibration?.status === 'pending', 8000, 'calibración del intérprete');
+  assert.equal(it.state.calibration.code.length, 2);
+  await op.until((b) => b.state.calibration?.status === 'pending', 2000);
+  assert.equal(op.state.calibration.code, undefined);
+  assert.equal(by.red.expert.state.calibration, undefined);
+  act(op, { type: 'calibrate', digits: it.state.calibration.code });
+  await op.until((b) => b.state.calibration?.status === 'idle', 2000, 'calibrado');
+  assert.equal(op.state.match.teams.red.errors, 0);
+  bots.forEach((b) => b.close());
+});
+
+test('calibraciones: solo el operador puede teclearlas y la entrada malformada se rechaza', async () => {
+  const room = await fullRoom(gCal.port, 4, 'easy');
+  const { bots, by } = room;
+  await startAndWait(room);
+  const an = by.red.analyst, op = by.red.operator;
+  await an.until((b) => b.state.calibration?.status === 'pending', 10000);
+  an.rejected.length = 0;
+  act(an, { type: 'calibrate', digits: an.state.calibration.code });
+  await an.until((b) => b.rejected.some((x) => x.code === 'forbidden'), 1000, 'analista no puede teclear');
+  op.rejected.length = 0;
+  act(op, { type: 'calibrate', digits: [1] });
+  await op.until((b) => b.rejected.some((x) => x.code === 'bad_action'), 1000, 'entrada malformada');
+  assert.equal(op.state.match.teams.red.errors, 0);
+  bots.forEach((b) => b.close());
 });

@@ -4,6 +4,7 @@ import {
 } from './engine/index.js';
 import { ROLES_BY_SIZE } from './engine/common.js';
 import { BUILD } from './build.js';
+import { makeRng } from './rng.js';
 
 export const COUNTDOWN_MS = Number(process.env.COUNTDOWN_MS ?? 5000);
 export const RECONNECT_MS = Number(process.env.RECONNECT_MS ?? 60000);
@@ -13,6 +14,13 @@ const TEAMS = ['red', 'blue'];
 export const hashToken = (t) => createHash('sha256').update(t).digest('hex');
 export const cleanName = (n) =>
   String(n ?? '').replace(/[\u0000-\u001f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 16);
+
+// Calibraciones: eventos periódicos cuyo código solo ve el analista (o el intérprete en 3v3) y teclea el operador.
+const CAL = {
+  easy: { first: 30000, interval: 75000, digits: 2 },
+  normal: { first: 25000, interval: 60000, digits: 2 },
+  hard: { first: 20000, interval: 50000, digits: 3 },
+};
 
 const fail = (code, message) => ({ error: { code, message } });
 
@@ -31,6 +39,7 @@ export class Room {
     this.version = 0;
     this.fixedSeed = opts.fixedSeed || null; // solo para pruebas
     this.timeScale = opts.timeScale ?? Number(process.env.TIME_SCALE ?? 1); // para pruebas de jugabilidad
+    this.calibration = opts.calibration !== false; // desactivable solo para pruebas
     this.onFx = () => {};
     this.onChange = () => {};
     this.clock = opts.clock || (() => Date.now());
@@ -196,6 +205,7 @@ export class Room {
     const mkTeam = () => ({
       moduleIndex: 0, states: bomb.modules.map((m) => initModuleState(m)), errors: 0, penaltyMs: 0,
       status: 'playing', finishedAt: null,
+      cal: { k: -1, status: 'idle', code: null, end: 0 },
     });
     this.match = {
       id: randomUUID().slice(0, 8), seed, bomb, cfg,
@@ -246,6 +256,7 @@ export class Room {
     if (this.status === 'playing') {
       for (const team of this.teams) {
         const t = this.match.teams[team];
+        if (t.status === 'playing') changed = this.tickCalibration(team, now) || changed;
         if (t.status === 'playing' && now >= this.deadline(team)) {
           t.status = 'timeout';
           t.finishedAt = this.deadline(team);
@@ -257,6 +268,77 @@ export class Room {
     }
     if (changed) { this.touch(); this.onChange(); }
     return changed;
+  }
+
+  // ---------- calibraciones ----------
+  get calCfg() {
+    const c = CAL[this.difficulty];
+    const k = this.timeScale;
+    return { first: c.first * k, interval: c.interval * k, window: (this.teamSize === 4 ? 40000 : 25000) * k, digits: c.digits };
+  }
+
+  calHolder() { return this.teamSize === 4 ? 'analyst' : 'interpreter'; }
+
+  calCode(team, k) {
+    const rng = makeRng(`${this.match.seed}|cal|${team}|${k}`);
+    return Array.from({ length: this.calCfg.digits }, () => rng.int(10));
+  }
+
+  tickCalibration(team, now) {
+    if (!this.calibration) return false;
+    const t = this.match.teams[team];
+    const cfg = this.calCfg;
+    let changed = false;
+    const elapsed = now - this.match.startsAt;
+    if (t.cal.status === 'pending' && now >= t.cal.end) {
+      t.cal.status = 'failed';
+      this.onFx({ kind: 'calfail', team });
+      this.registerError(team, now); // no llegar a tiempo cuenta como error
+      changed = true;
+      if (t.status !== 'playing') return true;
+    }
+    if (elapsed >= cfg.first) {
+      const k = Math.floor((elapsed - cfg.first) / cfg.interval);
+      if (k > t.cal.k) {
+        const start = this.match.startsAt + cfg.first + k * cfg.interval;
+        t.cal = { k, status: 'pending', code: this.calCode(team, k), end: start + cfg.window };
+        if (now >= t.cal.end) t.cal.status = 'failed'; // tick muy retrasado: se perdió la ventana
+        else this.onFx({ kind: 'calibration', team });
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
+  nextCalAt(t) { return this.match.startsAt + this.calCfg.first + (t.cal.k + 1) * this.calCfg.interval; }
+
+  submitCalibration(p, t, action, now) {
+    if (!this.calibration || t.cal.status !== 'pending' || now >= t.cal.end) return fail('no_calibration', 'No hay ninguna calibración activa');
+    const n = this.calCfg.digits;
+    if (!Array.isArray(action.digits) || action.digits.length !== n || !action.digits.every((d) => Number.isInteger(d) && d >= 0 && d <= 9))
+      return fail('bad_action', 'Acción no válida');
+    if (action.digits.every((d, i) => d === t.cal.code[i])) {
+      t.cal.status = 'ok';
+      this.onFx({ kind: 'calok', team: p.team });
+    } else this.registerError(p.team, now);
+    this.checkEnd(now);
+    this.touch();
+    this.onChange();
+    return {};
+  }
+
+  calibrationView(p, team) {
+    if (!this.calibration) return undefined;
+    const t = this.match.teams[team];
+    if (!t || t.status !== 'playing') return undefined;
+    const cfg = this.calCfg;
+    const pending = t.cal.status === 'pending';
+    if (p.role === 'operator') return pending ? { status: 'pending', end: t.cal.end, digits: cfg.digits } : { status: 'idle' };
+    if (p.role === this.calHolder())
+      return pending
+        ? { status: 'pending', end: t.cal.end, digits: cfg.digits, code: t.cal.code, nextAt: this.nextCalAt(t) }
+        : { status: 'idle', nextAt: this.nextCalAt(t), last: t.cal.status };
+    return undefined;
   }
 
   checkEnd(now) {
@@ -287,6 +369,8 @@ export class Room {
     if (m.seen.has(key)) return { duplicate: true };
     m.seen.add(key);
     if (m.seen.size > 5000) m.seen.clear();
+
+    if (msg.action && msg.action.type === 'calibrate') return this.submitCalibration(p, t, msg.action, now);
 
     const mod = m.bomb.modules[t.moduleIndex];
     const res = validateModuleAction(mod, t.states[t.moduleIndex], msg.action);
@@ -375,6 +459,7 @@ export class Room {
       const t = p.team && m.teams[p.team];
       if (this.status === 'playing' && t && t.status === 'playing' && p.role) {
         const mod = m.bomb.modules[t.moduleIndex];
+        out.calibration = this.calibrationView(p, p.team);
         out.module = {
           index: t.moduleIndex, type: mod.type,
           view: projectModule(mod, p.role, t.states[t.moduleIndex]),

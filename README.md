@@ -47,7 +47,11 @@ Para jugar en red local abre `http://<IP-de-tu-ordenador>:3000` en los móviles 
 | Jeroglíficos | 9 símbolos, 3 → 5 a pulsar, dos listas de prioridad | Qué lista (A/B) **y** si invertir |
 | Protocolo final | Una cifra por módulo (4 o 5), fórmula con paridad | Un modificador distinto **por cada cifra** |
 
-Cada dato del analista cambia siempre la respuesta (lo comprueban los tests). Sin analista (3v3) esos datos valen un valor fijo que indica el manual, pero el resto de reglas es igual de exigente. Cada uno implementa `generate(seed, difficulty, teamSize)`, `projectForRole`, `validateAction`, `solve` (`server/engine/`). Las reglas exactas están en el manual en pantalla (`public/js/manual.js`) y en los tests.
+Cada dato del analista cambia siempre la respuesta (lo comprueban los tests).
+
+### El analista trabaja durante toda la partida
+- **Calibraciones periódicas** (cada ~50–75 s según la dificultad): la bomba exige un código que **solo ve el analista** (en 3v3, el intérprete). Cadena: analista → (gestos) experto → (gestos) intérprete → (voz) operador, que lo teclea en su bomba antes de que acabe la cuenta atrás (40 s en 4v4, 25 s en 3v3). Si vence o se teclea mal, es un **error**. El código es distinto para cada equipo.
+- **Datos que se desbloquean paso a paso**: en los cables, el parámetro de cada corte solo aparece cuando le toca. Sin analista (3v3) esos datos valen un valor fijo que indica el manual, pero el resto de reglas es igual de exigente. Cada uno implementa `generate(seed, difficulty, teamSize)`, `projectForRole`, `validateAction`, `solve` (`server/engine/`). Las reglas exactas están en el manual en pantalla (`public/js/manual.js`) y en los tests.
 
 ## Arquitectura
 - **Servidor Node.js + WebSocket (`ws`)**, autoritativo: salas, roles, bomba, temporizador, errores, victoria y reconexión. Sirve también el cliente: **un único servicio y un único enlace**.

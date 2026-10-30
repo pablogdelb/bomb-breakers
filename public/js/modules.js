@@ -5,7 +5,7 @@ import { HEX, COLOR_ABBR, symbol } from './art.js';
 
 const GRAY = '#8d96a3';
 
-function keypad({ n, label, onSubmit, testid }) {
+export function keypad({ n, label, onSubmit, testid, prefix = 'key' }) {
   let code = [];
   const lcd = h('div', { class: 'lcd', 'data-testid': `${testid}-lcd` });
   const paint = () => {
@@ -14,10 +14,10 @@ function keypad({ n, label, onSubmit, testid }) {
   };
   const keys = h('div', { class: 'keypad' });
   for (const d of [1, 2, 3, 4, 5, 6, 7, 8, 9, 0]) {
-    keys.append(h('button', { class: 'key', 'data-testid': `key-${d}`, onclick: () => { if (code.length < n) { code.push(d); sfx.click(); paint(); } } }, d));
+    keys.append(h('button', { class: 'key', 'data-testid': `${prefix}-${d}`, onclick: () => { if (code.length < n) { code.push(d); sfx.click(); paint(); } } }, d));
   }
-  const del = h('button', { class: 'btn small', 'data-testid': 'key-del', onclick: () => { code.pop(); sfx.click(); paint(); } }, 'BORRAR');
-  const go = h('button', { class: 'btn primary grow', 'data-testid': 'key-submit', onclick: () => {
+  const del = h('button', { class: 'btn small', 'data-testid': `${prefix}-del`, onclick: () => { code.pop(); sfx.click(); paint(); } }, 'BORRAR');
+  const go = h('button', { class: 'btn primary grow', 'data-testid': `${prefix}-submit`, onclick: () => {
     if (code.length !== n) return;
     const digits = code.slice(); code = []; paint(); onSubmit(digits);
   } }, label);

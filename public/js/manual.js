@@ -112,13 +112,21 @@ function protocolPage(v) {
 const PAGES = { cables: cablesPage, safe: safePage, simon: simonPage, circuit: circuitPage, glyphs: glyphsPage, protocol: protocolPage };
 
 export function expertPage(view, type) {
-  return h('div', { class: 'manual', 'data-testid': 'manual' }, h('h3', null, `MANUAL DE DESACTIVACIÓN · ${MODULE_TITLES[type]}`), PAGES[type](view));
+  return h('div', { class: 'manual', 'data-testid': 'manual' }, h('h3', null, `MANUAL DE DESACTIVACIÓN · ${MODULE_TITLES[type]}`), PAGES[type](view),
+    h('h4', null, 'CALIBRACIONES (en cualquier momento)'),
+    h('div', { class: 'note' }, view.analyst
+      ? 'Cada cierto tiempo el ANALISTA ve un código de calibración. Te lo dirá con gestos (cifra a cifra): repítelo con gestos al INTÉRPRETE para que se lo diga al operador, que lo teclea antes de que acabe la cuenta atrás. Si no llega a tiempo o es erróneo, suma un error.'
+      : 'Cada cierto tiempo aparece una calibración: el INTÉRPRETE ve el código y se lo dice al operador. Tú sigues con el manual.'));
 }
 
 const abox = (label, value, active, big) => h('div', { class: `abox ${active ? 'active' : ''}` }, h('div', { class: 'k' }, label), h('div', { class: `v ${big ? 'word' : ''}` }, value));
 
 const ANALYST = {
-  cables: (v) => ({ title: 'PARÁMETROS POR PASO', items: v.params.map((x, i) => abox(`PASO ${i + 1}`, x, i === v.step)), desc: `Uno por cada corte (0 ó 1). Se ilumina el paso actual (${Math.min(v.step + 1, v.params.length)}). Díselos al experto con los dedos cuando los pida.` }),
+  cables: (v) => ({
+    title: 'PARÁMETRO DEL PASO ACTUAL',
+    items: Array.from({ length: v.total }, (_, i) => (i < v.params.length ? abox(`PASO ${i + 1}`, v.params[i], i === v.step) : abox(`PASO ${i + 1}`, '🔒'))),
+    desc: `Cada parámetro (0 ó 1) aparece solo cuando llega su corte. Ahora toca el PASO ${Math.min(v.step + 1, v.total)}: dáselo al experto con un dedo (0 = puño). Se desbloquea el siguiente cuando el operador corta el cable.`,
+  }),
   safe: (v) => ({ title: 'PARÁMETROS DE LA CAJA', items: v.params.map((p) => abox(p.key, p.value)), desc: 'A: 0–3 · B y C: 0–9. Muéstraselos al experto con los dedos (una cifra cada vez).' }),
   simon: (v) => ({ title: 'TABLA E INVERSIÓN', items: [abox('TABLA', v.table, false, true), abox('INVERTIR', v.reverse ? 'SÍ' : 'NO', false, true)], desc: 'Dos datos: qué tabla de colores usa el experto (A o B) y si invierte el orden de la secuencia.' }),
   circuit: (v) => ({ title: 'PILOTOS INVERTIDOS', items: v.flip.map((n) => abox('PILOTO', `P${n}`, true)), desc: 'Estos pilotos tienen el objetivo al revés. Indícaselos al experto uno a uno con los dedos.' }),
@@ -140,27 +148,27 @@ export function analystSheet(view, type) {
 export const ROLES = {
   operator: {
     name: 'OPERADOR', nick: 'EL CIEGO', icon: '🧤',
-    can: ['Eres el único que toca la bomba (cortar, pulsar, introducir códigos).', 'Ves la bomba en escala de grises: posiciones, formas y números, nunca colores.', 'Puedes hablar y oír a tus compañeros.'],
+    can: ['Eres el único que toca la bomba (cortar, pulsar, introducir códigos).', 'Cada cierto tiempo debes teclear un CÓDIGO DE CALIBRACIÓN antes de que acabe la cuenta atrás (te lo da tu intérprete).', 'Ves la bomba en escala de grises: posiciones, formas y números, nunca colores.', 'Puedes hablar y oír a tus compañeros.'],
     cannot: ['No ves colores ni el manual.', 'Nadie más puede manipular la bomba.'],
     tip: 'Ejecuta lo que te diga tu intérprete. Dicta en voz alta lo que ves: el experto te oye.',
   },
   expert: {
     name: 'EXPERTO', nick: 'EL MUDO', icon: '📖',
-    can: ['Tienes el manual de desactivación con todas las reglas.', 'Puedes oír a los demás.'],
+    can: ['Tienes el manual de desactivación con todas las reglas.', 'Eres el relevo de las calibraciones: recibes el código del analista con gestos y se lo pasas con gestos al intérprete.', 'Puedes oír a los demás.'],
     cannot: ['NO puedes hablar: solo gestos.', 'No puedes enseñar tu pantalla ni escribir mensajes.', 'No tocas la bomba y no sabes dónde están los colores.'],
     tip: 'El intérprete te gesticula lo que ve; tú aplicas el manual y le respondes con gestos.',
   },
   interpreter: {
     name: 'INTÉRPRETE', nick: 'EL SORDO', icon: '👁️',
-    can: ['Ves la bomba a color: cables, luces y marcas.', 'Puedes hablar con el operador y usar gestos con el experto.'],
+    can: ['Ves la bomba a color: cables, luces y marcas.', 'Puedes hablar con el operador y usar gestos con el experto.', 'Eres el último relevo de las calibraciones: el experto te da el código con gestos y se lo dices al operador (en 3 contra 3 lo ves tú directamente).'],
     cannot: ['NO usas nada de lo que oigas decir a otros (eres sordo).', 'No tienes manual ni puedes tocar la bomba.'],
     tip: 'Traduce: gestos al experto, voz al operador.',
   },
   analyst: {
     name: 'ANALISTA', nick: 'EL ANALISTA', icon: '📊',
-    can: ['Tienes varios datos técnicos por módulo (parámetros, tablas, pilotos, modificadores) que el experto necesita.', 'Puedes oír a los demás.'],
+    can: ['Tienes varios datos técnicos por módulo (parámetros, tablas, pilotos, modificadores) que el experto necesita; en los cables se desbloquea uno nuevo en cada corte.', 'TAREA CONTINUA: cada cierto tiempo aparece en tu pantalla un CÓDIGO DE CALIBRACIÓN. Pásaselo al experto con gestos rápido: tiene que llegar al operador antes de que acabe la cuenta atrás.', 'Puedes oír a los demás.'],
     cannot: ['Solo comunicas tus datos al experto mediante gestos.', 'No tocas la bomba ni ves el manual. No muestras tu pantalla.'],
-    tip: 'Cada dato tuyo cambia la respuesta: sin ti el experto no sabe qué variante de la regla aplicar.',
+    tip: 'Estás activo todo el rato: los datos de cada módulo y las calibraciones. Sin ti la bomba no se desactiva.',
   },
 };
 
@@ -189,6 +197,7 @@ export function gestureGuide() {
       item('Rojo', 'puño apretado (o señalar algo rojo).'), item('Azul', 'mano plana ondulando como agua.'), item('Verde', 'mano en forma de hoja / dedos en V.'), item('Amarillo', 'dedos juntos hacia arriba como una llama / señalar algo amarillo.'))),
     h('div', { class: 'panel' }, h('h3', null, 'SÍMBOLOS'), h('ul', null,
       item('Sol', 'círculo con los brazos y dedos abiertos.'), item('Luna', 'dibujar una C en el aire.'), item('Ancla', 'mano que cae con el dedo en gancho.'), item('Rombo', 'dedos formando un diamante.'), item('Espiral', 'girar el dedo en círculos.'), item('Rayo', 'zigzag con el brazo.'))),
+    h('div', { class: 'panel' }, h('h3', null, 'CALIBRACIONES'), h('p', null, 'Cada cierto tiempo la bomba exige un código. Cadena: ANALISTA ⟶ (gestos) EXPERTO ⟶ (gestos) INTÉRPRETE ⟶ (voz) OPERADOR, que lo teclea. En 3 contra 3 lo ve el intérprete y se lo dice al operador. Si vence el tiempo o el código es erróneo, es un error.')),
     h('div', { class: 'panel' }, h('h3', null, 'REGLAS DE ORO'), h('ul', null,
       h('li', null, 'No se enseñan pantallas. No se escriben mensajes ni se usan otras apps.'), h('li', null, 'El mudo no habla. El sordo no usa lo que oye.'), h('li', null, 'Cada error acerca la explosión: confirmad antes de actuar.'))));
 }

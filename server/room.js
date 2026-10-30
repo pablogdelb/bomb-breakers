@@ -3,6 +3,7 @@ import {
   generateBomb, DIFFICULTIES, PENALTY_MS, initModuleState, projectModule, validateModuleAction,
 } from './engine/index.js';
 import { ROLES_BY_SIZE } from './engine/common.js';
+import { BUILD } from './build.js';
 
 export const COUNTDOWN_MS = Number(process.env.COUNTDOWN_MS ?? 5000);
 export const RECONNECT_MS = Number(process.env.RECONNECT_MS ?? 60000);
@@ -349,7 +350,7 @@ export class Room {
   viewFor(p) {
     const now = this.clock();
     const out = {
-      t: 'state', now,
+      t: 'state', now, build: BUILD,
       room: {
         code: this.code, status: this.status, teamSize: this.teamSize, difficulty: this.difficulty,
         hostId: this.hostId, version: this.version, mode: this.mode,

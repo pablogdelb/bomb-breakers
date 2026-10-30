@@ -1,14 +1,22 @@
 import { h, clear } from './dom.js';
 import { Net } from './net.js';
 import { applyPrefs } from './sound.js';
-import { createHome, createLobby, createGame, createResults, toast } from './screens.js';
+import { createHome, createLobby, createGame, createResults, toast, BUILD } from './screens.js';
 
 applyPrefs();
 const root = document.getElementById('app');
 let state = null, current = { name: null, comp: null }, status = 'connecting', connBar = null, replaced = false;
 
 const net = new Net({
-  onState(s) { state = s; render(); },
+  onState(s) {
+    // pestaña con una versión distinta a la del servidor (p. ej. abierta antes de una actualización): recargar una vez
+    if (s.build && s.build !== BUILD) {
+      let tried = null;
+      try { tried = sessionStorage.getItem('bb_reload'); } catch { /* */ }
+      if (tried !== s.build) { try { sessionStorage.setItem('bb_reload', s.build); } catch { /* */ } location.reload(); return; }
+    }
+    state = s; render();
+  },
   onWelcome(w) { try { history.replaceState(null, '', `/${w.code}`); } catch { /* */ } },
   onFx(f) { current.comp?.fx?.(f); },
   onLeft() { state = null; try { history.replaceState(null, '', '/'); } catch { /* */ } render(); },

@@ -14,7 +14,7 @@ const MIME = {
 };
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
-export function createGameServer({ port = Number(process.env.PORT || 3000), host = '0.0.0.0', fixedSeed = null, timeScale } = {}) {
+export function createGameServer({ port = Number(process.env.PORT || 3000), host = '0.0.0.0', fixedSeed = null, timeScale, createLimit = 10 } = {}) {
   const rooms = new Map();
   const clients = new Set();
   const ipCreates = new Map();
@@ -97,7 +97,7 @@ export function createGameServer({ port = Number(process.env.PORT || 3000), host
         case 'ping': return send({ t: 'pong', now: Date.now() });
         case 'create': {
           const hits = (ipCreates.get(ip) || []).filter((x) => nowMs() - x < 60000);
-          if (hits.length >= 10) return err('rate_limited', 'Demasiadas salas creadas, espera un minuto');
+          if (hits.length >= createLimit) return err('rate_limited', 'Demasiadas salas creadas, espera un minuto');
           hits.push(nowMs()); ipCreates.set(ip, hits);
           if (rooms.size >= 500) return err('busy', 'Servidor lleno, inténtalo más tarde');
           const room = new Room(newCode(), { fixedSeed, timeScale });

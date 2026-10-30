@@ -7,7 +7,7 @@ import { Bot, fullRoom, sleep } from './helpers.js';
 import { solveModule, DIFFICULTIES } from '../server/engine/index.js';
 
 let g, gFast; // gFast: reloj acelerado (8 min -> 4.8 s) para probar el temporizador real
-test.before(async () => { g = await createGameServer({ port: 0 }); gFast = await createGameServer({ port: 0, timeScale: 0.01 }); });
+test.before(async () => { g = await createGameServer({ port: 0, createLimit: 1000 }); gFast = await createGameServer({ port: 0, timeScale: 0.01, createLimit: 1000 }); });
 test.after(async () => { await g.close(); await gFast.close(); });
 
 const matchOf = (host) => g.rooms.get(host.code).match;
@@ -263,4 +263,77 @@ test('configuración de dificultad: módulos, errores y tiempos según el docume
   assert.deepEqual(['easy', 'normal', 'hard'].map((d) => DIFFICULTIES[d].minutes), [12, 10, 8]);
   assert.deepEqual(['easy', 'normal', 'hard'].map((d) => DIFFICULTIES[d].modules), [3, 4, 5]);
   assert.deepEqual(['easy', 'normal', 'hard'].map((d) => DIFFICULTIES[d].maxErrors), [4, 3, 3]);
+});
+
+for (const size of [3, 4]) {
+  test(`modo cooperativo (1 equipo de ${size}): inicio, victoria y revancha`, async () => {
+    const room = await fullRoom(g.port, size, 'hard', 'coop');
+    const { bots, host, by } = room;
+    assert.equal(bots.length, size);
+    assert.equal(host.room.mode, 'coop');
+    await startAndWait(room);
+    assert.deepEqual(Object.keys(host.state.match.teams), ['red']);
+    for (const b of bots) await b.until((x) => x.state.module, 2000, 'vista de módulo');
+    assert.equal(!!by.red.analyst, size === 4);
+    await solveTeam(room, 'red', host);
+    await host.until((b) => b.room.status === 'finished', 3000, 'fin');
+    assert.equal(host.state.match.winner, 'red');
+    assert.equal(host.state.match.teams.red.status, 'defused');
+    by.red.expert.send({ t: 'rematch' });
+    await host.until((b) => b.room.status === 'lobby' && b.room.mode === 'coop', 2000, 'revancha');
+    assert.ok(bots.every((b) => b.me.team === 'red'));
+    bots.forEach((b) => b.close());
+  });
+}
+
+test('modo cooperativo: explota por errores y pierden; el equipo azul no existe', async () => {
+  const room = await fullRoom(g.port, 3, 'normal', 'coop');
+  const { bots, host, by } = room;
+  await startAndWait(room);
+  const m = matchOf(host);
+  const op = by.red.operator;
+  await op.until((b) => b.state.module);
+  for (let i = 0; i < 3; i++) act(op, wrongFor(m.bomb.modules[0]));
+  await host.until((b) => b.room.status === 'finished', 2000, 'derrota');
+  assert.equal(host.state.match.winner, null);
+  assert.equal(host.state.match.teams.red.status, 'exploded');
+  assert.equal(host.state.match.teams.blue, undefined);
+  bots.forEach((b) => b.close());
+});
+
+test('modo cooperativo: reglas de la sala', async () => {
+  const host = await new Bot(g.port, 'Anfi').create();
+  const bots = [host];
+  for (let i = 1; i < 4; i++) bots.push(await new Bot(g.port, `C${i}`).join(host.code));
+  host.send({ t: 'config', mode: 'coop', teamSize: 4 });
+  await host.until((b) => b.room.mode === 'coop');
+  // el equipo azul no existe
+  bots[1].send({ t: 'seat', team: 'blue', role: 'operator' });
+  await bots[1].until((b) => b.rejected.some((r) => r.code === 'bad_seat'), 1000);
+  // al pasar a coop se vacían los puestos azules
+  host.send({ t: 'config', mode: 'versus' });
+  await host.until((b) => b.room.mode === 'versus');
+  bots[2].send({ t: 'seat', team: 'blue', role: 'expert' });
+  await bots[2].until((b) => b.me.team === 'blue');
+  host.send({ t: 'config', mode: 'coop' });
+  await bots[2].until((b) => b.me.team === null && b.room.mode === 'coop');
+  // modo inválido
+  host.send({ t: 'config', mode: 'nada' });
+  await host.until((b) => b.rejected.some((r) => r.code === 'bad_config'), 1000);
+  // con 4 jugadores en 4 puestos de un solo equipo, puede iniciar
+  const roles = ['operator', 'expert', 'interpreter', 'analyst'];
+  for (let i = 0; i < 4; i++) { bots[i].send({ t: 'seat', team: 'red', role: roles[i] }); await bots[i].until((b) => b.me.role === roles[i]); }
+  for (const b of bots) b.send({ t: 'ready', value: true });
+  await host.until((b) => b.room.canStart?.ok === true, 1500, 'puede iniciar');
+  bots.forEach((b) => b.close());
+});
+
+test('límite de creación de salas por IP', async () => {
+  const lim = await createGameServer({ port: 0 }); // límite por defecto: 10 por minuto
+  const bots = [];
+  for (let i = 0; i < 10; i++) bots.push(await new Bot(lim.port, `S${i}`).create());
+  const extra = new Bot(lim.port, 'S11'); await extra.connect(); extra.send({ t: 'create', name: 'S11' });
+  await extra.until((b) => b.errors.some((e) => e.code === 'rate_limited'), 1500);
+  [...bots, extra].forEach((b) => b.close());
+  await lim.close();
 });

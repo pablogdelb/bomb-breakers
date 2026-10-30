@@ -79,6 +79,8 @@ export function createLobby({ net }) {
     const isHost = me.isHost;
     const players = room.players;
     const roles = room.teamSize === 4 ? ROLE_ORDER : ROLE_ORDER.slice(0, 3);
+    const coop = room.mode === 'coop';
+    const teamList = coop ? ['red'] : ['red', 'blue'];
     const myP = players.find((p) => p.id === me.id);
     clear(el);
     fill(el,
@@ -87,13 +89,16 @@ export function createLobby({ net }) {
         h('div', { class: 'row', style: { justifyContent: 'center' } },
           h('button', { class: 'btn small', onclick: () => copy(link(room.code), 'Enlace copiado') }, 'COPIAR ENLACE'),
           navigator.share ? h('button', { class: 'btn small', onclick: () => navigator.share({ title: 'BOMB BREAKERS', text: `Únete a mi sala: ${room.code}`, url: link(room.code) }).catch(() => {}) }, 'COMPARTIR') : null)),
-      h('div', { class: 'panel stack' }, h('div', { class: 'label' }, 'MODALIDAD'),
-        h('div', { class: 'chips' }, [3, 4].map((n) => h('button', { class: `chip ${room.teamSize === n ? 'active' : ''}`, disabled: !isHost, 'data-testid': `size-${n}`, onclick: () => net.send({ t: 'config', teamSize: n }) }, `${n} CONTRA ${n}`))),
+      h('div', { class: 'panel stack' }, h('div', { class: 'label' }, 'TIPO DE PARTIDA'),
+        h('div', { class: 'chips' }, [['versus', '2 EQUIPOS'], ['coop', '1 EQUIPO · COOP']].map(([m, txt]) => h('button', { class: `chip ${room.mode === m ? 'active' : ''}`, disabled: !isHost, 'data-testid': `mode-${m}`, onclick: () => net.send({ t: 'config', mode: m }) }, txt))),
+        coop ? h('div', { class: 'notice' }, 'Un solo equipo contra el reloj: desactivad la bomba antes de que se acabe el tiempo o los errores.') : null,
+        h('div', { class: 'label' }, 'MODALIDAD'),
+        h('div', { class: 'chips' }, [3, 4].map((n) => h('button', { class: `chip ${room.teamSize === n ? 'active' : ''}`, disabled: !isHost, 'data-testid': `size-${n}`, onclick: () => net.send({ t: 'config', teamSize: n }) }, coop ? `${n} JUGADORES` : `${n} CONTRA ${n}`))),
         h('div', { class: 'label' }, 'DIFICULTAD'),
         h('div', { class: 'chips' }, ['easy', 'normal', 'hard'].map((d) => h('button', { class: `chip ${room.difficulty === d ? 'active' : ''}`, disabled: !isHost, 'data-testid': `diff-${d}`, onclick: () => net.send({ t: 'config', difficulty: d }) }, DIFF_NAME[d]))),
         !isHost ? h('div', { class: 'notice' }, 'Solo el anfitrión cambia la configuración.') : null),
       h('div', { class: 'label', style: { textAlign: 'center' } }, 'ELIGE EQUIPO Y ROL (toca un puesto; si está ocupado, intercambias)'),
-      h('div', { class: 'teams' }, ['red', 'blue'].map((team) => h('div', { class: `team ${team}` }, h('h3', null, TEAM_NAME[team]),
+      h('div', { class: `teams ${coop ? 'one' : ''}` }, teamList.map((team) => h('div', { class: `team ${team}` }, h('h3', null, coop ? 'TU EQUIPO' : TEAM_NAME[team]),
         roles.map((role) => {
           const o = players.find((p) => p.team === team && p.role === role);
           const mine = o && o.id === me.id;
@@ -111,7 +116,7 @@ export function createLobby({ net }) {
           !room.canStart?.ok ? h('div', { class: 'notice', 'data-testid': 'start-reason' }, room.canStart?.reason) : null,
           h('div', { class: 'row' },
             h('button', { class: 'btn small grow', onclick: () => net.send({ t: 'shuffle', mode: 'roles' }) }, '⇄ INTERCAMBIAR ROLES'),
-            h('button', { class: 'btn small grow', onclick: () => net.send({ t: 'shuffle', mode: 'teams' }) }, '⇄ MEZCLAR EQUIPOS'))) : h('div', { class: 'notice' }, 'Esperando a que el anfitrión inicie la partida…')),
+            coop ? null : h('button', { class: 'btn small grow', onclick: () => net.send({ t: 'shuffle', mode: 'teams' }) }, '⇄ MEZCLAR EQUIPOS'))) : h('div', { class: 'notice' }, 'Esperando a que el anfitrión inicie la partida…')),
       h('div', { class: 'row' },
         h('button', { class: 'btn ghost grow', onclick: () => modal(gestureGuide()) }, '🖐 GESTOS'),
         h('button', { class: 'btn ghost grow', disabled: !me.role, onclick: () => me.role && modal(roleCard(me.role)) }, 'MI ROL'),
@@ -202,6 +207,7 @@ export function createGame({ net }) {
   }
   function oppText(s) {
     const opp = s.match.teams[s.me.team === 'red' ? 'blue' : 'red'];
+    if (!opp) return '';
     const name = TEAM_NAME[s.me.team === 'red' ? 'blue' : 'red'];
     if (opp.status === 'playing') return `${name} sigue intentándolo: módulo ${opp.moduleIndex + 1}/${opp.moduleCount}`;
     return `${name}: ${opp.status === 'defused' ? 'bomba desactivada' : 'también ha fallado'}`;
@@ -217,7 +223,8 @@ export function createGame({ net }) {
     clear(strikes);
     for (let i = 0; i < t.maxErrors; i++) strikes.append(h('span', { class: `led ${i < t.errors ? 'on' : ''}` }));
     clear(race);
-    for (const tm of ['red', 'blue']) {
+    race.classList.toggle('one', Object.keys(match.teams).length === 1);
+    for (const tm of Object.keys(match.teams)) {
       const x = match.teams[tm];
       race.append(h('div', { class: `${tm} ${x.status !== 'playing' && x.status !== 'defused' ? 'dead' : ''}` },
         `${tm === 'red' ? 'ROJO' : 'AZUL'} ${x.moduleIndex}/${x.moduleCount}${x.status === 'defused' ? ' ✔' : x.status === 'exploded' || x.status === 'timeout' ? ' ✖' : ''}`,
@@ -293,17 +300,18 @@ export function createResults({ net }) {
     const { match, me, room } = st;
     const w = match.winner;
     const mine = w && w === me.team;
+    const coop = room.mode === 'coop';
     if (!played) { played = true; (mine ? sfx.win : sfx.lose)(); }
     const names = { defused: 'DESACTIVADA', exploded: 'EXPLOTÓ (errores)', timeout: 'EXPLOTÓ (tiempo)', playing: 'SIN TERMINAR' };
     clear(el);
     fill(el,
       h('div', { class: `result-title ${mine ? 'win' : 'lose'}`, 'data-testid': 'result-title' },
         h('div', { class: 'label' }, 'RESULTADO'),
-        h('h1', null, w ? `${TEAM_NAME[w]} GANA` : 'NADIE DESACTIVÓ LA BOMBA'),
-        h('p', null, w ? (mine ? '¡Vuestro equipo desactivó la bomba primero!' : 'El otro equipo fue más rápido.') : 'Ambas bombas explotaron.')),
-      ['red', 'blue'].map((tm) => {
+        h('h1', null, coop ? (w ? '¡BOMBA DESACTIVADA!' : 'LA BOMBA EXPLOTÓ') : w ? `${TEAM_NAME[w]} GANA` : 'NADIE DESACTIVÓ LA BOMBA'),
+        h('p', null, coop ? (w ? '¡Lo habéis conseguido a tiempo!' : 'No lo habéis conseguido esta vez.') : w ? (mine ? '¡Vuestro equipo desactivó la bomba primero!' : 'El otro equipo fue más rápido.') : 'Ambas bombas explotaron.')),
+      Object.keys(match.teams).map((tm) => {
         const x = match.teams[tm];
-        return h('div', { class: `rteam ${tm} ${w === tm ? 'winner' : ''}` }, h('h3', { class: `team-tag ${tm}` }, TEAM_NAME[tm], w === tm ? ' 🏆' : ''),
+        return h('div', { class: `rteam ${tm} ${w === tm ? 'winner' : ''}` }, h('h3', { class: `team-tag ${tm}` }, coop ? 'VUESTRA BOMBA' : TEAM_NAME[tm], w === tm ? ' 🏆' : ''),
           h('dl', null, h('dt', null, 'Bomba'), h('dd', null, names[x.status]),
             h('dt', null, 'Módulos'), h('dd', null, `${x.moduleIndex} / ${x.moduleCount}`),
             h('dt', null, 'Errores'), h('dd', null, `${x.errors} / ${x.maxErrors}`),

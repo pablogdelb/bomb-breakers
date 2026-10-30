@@ -22,6 +22,7 @@ export class Room {
     this.hostId = null;
     this.teamSize = 3;
     this.difficulty = 'normal';
+    this.mode = 'versus'; // versus: 2 equipos compiten · coop: un solo equipo contra el reloj
     this.status = 'lobby'; // lobby | countdown | playing | finished
     this.match = null;
     this.createdAt = Date.now();
@@ -95,6 +96,8 @@ export class Room {
 
   roles() { return ROLES_BY_SIZE[this.teamSize]; }
 
+  get teams() { return this.mode === 'coop' ? ['red'] : TEAMS; }
+
   seatOwner(team, role) {
     return [...this.players.values()].find((p) => p.team === team && p.role === role) || null;
   }
@@ -102,7 +105,7 @@ export class Room {
   // ---------- lobby ----------
   chooseSeat(p, team, role) {
     if (this.status !== 'lobby') return fail('bad_state', 'Solo se puede cambiar de puesto en la sala de espera');
-    if (!TEAMS.includes(team) || !this.roles().includes(role)) return fail('bad_seat', 'Puesto no válido');
+    if (!this.teams.includes(team) || !this.roles().includes(role)) return fail('bad_seat', 'Puesto no válido');
     const owner = this.seatOwner(team, role);
     if (owner === p) { // soltar el puesto
       p.team = null; p.role = null; p.ready = false;
@@ -125,7 +128,7 @@ export class Room {
     return {};
   }
 
-  configure(p, { teamSize, difficulty }) {
+  configure(p, { teamSize, difficulty, mode }) {
     if (p.id !== this.hostId) return fail('not_host', 'Solo el anfitrión puede configurar la sala');
     if (this.status !== 'lobby') return fail('bad_state', 'No disponible ahora');
     if (teamSize !== undefined) {
@@ -133,6 +136,11 @@ export class Room {
       this.teamSize = teamSize;
       if (teamSize === 3)
         for (const q of this.players.values()) if (q.role === 'analyst') { q.team = null; q.role = null; }
+    }
+    if (mode !== undefined) {
+      if (mode !== 'versus' && mode !== 'coop') return fail('bad_config', 'Modo no válido');
+      this.mode = mode;
+      if (mode === 'coop') for (const q of this.players.values()) if (q.team === 'blue') { q.team = null; q.role = null; }
     }
     if (difficulty !== undefined) {
       if (!DIFFICULTIES[difficulty]) return fail('bad_config', 'Dificultad no válida');
@@ -148,13 +156,13 @@ export class Room {
     if (this.status !== 'lobby') return fail('bad_state', 'No disponible ahora');
     const shuffle = (a) => { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
     if (mode === 'roles') {
-      for (const team of TEAMS) {
+      for (const team of this.teams) {
         const members = [...this.players.values()].filter((q) => q.team === team);
         const roles = shuffle(members.map((q) => q.role));
         members.forEach((q, i) => (q.role = roles[i]));
       }
     } else if (mode === 'teams') {
-      const seats = shuffle(TEAMS.flatMap((team) => this.roles().map((role) => ({ team, role }))));
+      const seats = shuffle(this.teams.flatMap((team) => this.roles().map((role) => ({ team, role }))));
       const list = shuffle([...this.players.values()]);
       list.forEach((q, i) => { q.team = seats[i]?.team ?? null; q.role = seats[i]?.role ?? null; });
     } else return fail('bad_config', 'Modo no válido');
@@ -165,11 +173,11 @@ export class Room {
 
   canStart() {
     const ps = [...this.players.values()];
-    const need = this.teamSize * 2;
+    const need = this.teamSize * this.teams.length;
     if (ps.length !== need)
       return { ok: false, reason: `Hacen falta exactamente ${need} jugadores (hay ${ps.length})` };
-    for (const team of TEAMS) for (const role of this.roles())
-      if (!this.seatOwner(team, role)) return { ok: false, reason: 'Faltan puestos por ocupar en algún equipo' };
+    for (const team of this.teams) for (const role of this.roles())
+      if (!this.seatOwner(team, role)) return { ok: false, reason: 'Faltan puestos por ocupar en el equipo' };
     if (ps.some((q) => !q.connected)) return { ok: false, reason: 'Hay jugadores desconectados' };
     if (ps.some((q) => !q.ready)) return { ok: false, reason: 'Todos los jugadores deben estar preparados' };
     return { ok: true };
@@ -192,7 +200,7 @@ export class Room {
       id: randomUUID().slice(0, 8), seed, bomb, cfg,
       startsAt: now + COUNTDOWN_MS,
       durationMs: Math.round(cfg.minutes * 60000 * this.timeScale),
-      teams: { red: mkTeam(), blue: mkTeam() },
+      teams: Object.fromEntries(this.teams.map((tm) => [tm, mkTeam()])),
       winner: null, endedAt: null, seen: new Set(),
     };
     this.status = 'countdown';
@@ -235,7 +243,7 @@ export class Room {
       changed = true;
     }
     if (this.status === 'playing') {
-      for (const team of TEAMS) {
+      for (const team of this.teams) {
         const t = this.match.teams[team];
         if (t.status === 'playing' && now >= this.deadline(team)) {
           t.status = 'timeout';
@@ -254,7 +262,7 @@ export class Room {
     const m = this.match;
     if (this.status !== 'playing') return false;
     if (m.winner) return this.finish(now);
-    if (TEAMS.every((tm) => m.teams[tm].status !== 'playing')) return this.finish(now);
+    if (this.teams.every((tm) => m.teams[tm].status !== 'playing')) return this.finish(now);
     return false;
   }
 
@@ -344,7 +352,7 @@ export class Room {
       t: 'state', now,
       room: {
         code: this.code, status: this.status, teamSize: this.teamSize, difficulty: this.difficulty,
-        hostId: this.hostId, version: this.version,
+        hostId: this.hostId, version: this.version, mode: this.mode,
         players: [...this.players.values()].map((q) => ({
           id: q.id, name: q.name, team: q.team, role: q.role, ready: q.ready, connected: q.connected,
         })),
@@ -356,7 +364,7 @@ export class Room {
       const m = this.match;
       out.match = {
         startsAt: m.startsAt, durationMs: m.durationMs, winner: m.winner,
-        teams: { red: this.publicTeam('red'), blue: this.publicTeam('blue') },
+        teams: Object.fromEntries(this.teams.map((tm) => [tm, this.publicTeam(tm)])),
         modules: this.status === 'countdown' ? undefined : m.bomb.modules.map((x) => x.type),
       };
       if (this.status === 'finished') {

@@ -20,6 +20,10 @@ npm start            # http://localhost:3000
 
 Para jugar en red local abre `http://<IP-de-tu-ordenador>:3000` en los móviles (misma wifi). Para jugar por internet, ver [DEPLOY.md](DEPLOY.md).
 
+## Tipos de partida
+- **2 equipos (3v3 o 4v4):** compiten por desactivar la misma bomba. Hacen falta 6 u 8 jugadores.
+- **1 equipo · COOP (3 o 4 jugadores):** un solo equipo contra el reloj, sin rival. Ganan si desactivan la bomba antes de que se acabe el tiempo o los errores. Sirve también para practicar.
+
 ## Cómo se juega
 1. Una persona pulsa **CREAR SALA** y comparte el código de 6 caracteres o el enlace (`https://tu-sitio/ABC123`).
 2. Todos entran con un nombre (sin registro), eligen equipo y rol tocando un puesto (si está ocupado, se intercambian) y pulsan **ESTOY LISTO**.
@@ -48,7 +52,7 @@ Cables encadenados · Caja fuerte · Simón corrompido · Circuito de emergencia
 - **Protocolo con 5 módulos** (difícil): usa los 4 últimos módulos; la lista aparece etiquetada en las pantallas.
 - **Temporizador compartido**: todos comparten el instante de inicio; cada equipo tiene su límite (las penalizaciones solo afectan al equipo que falla).
 - **Fin de partida**: termina en cuanto un equipo desactiva; si ambos fallan, pierden los dos.
-- Seats fijos: para iniciar hay que ser exactamente 6 u 8 jugadores con todos los puestos ocupados.
+- Puestos fijos: para iniciar hay que ser exactamente 6 u 8 jugadores (2 equipos) o 3/4 (modo coop), con todos los puestos ocupados.
 
 ## Variables de entorno
 Ver `.env.example` (todas opcionales; no hay secretos).

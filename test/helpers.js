@@ -38,18 +38,19 @@ export class Bot {
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** Crea una sala llena y deja a todos preparados. Devuelve bots por equipo/rol. */
-export async function fullRoom(port, teamSize = 3, difficulty = 'normal') {
-  const n = teamSize * 2;
+export async function fullRoom(port, teamSize = 3, difficulty = 'normal', mode = 'versus') {
+  const coop = mode === 'coop';
+  const n = teamSize * (coop ? 1 : 2);
   const bots = [];
   const host = await new Bot(port, 'Host').create();
   bots.push(host);
   for (let i = 1; i < n; i++) bots.push(await new Bot(port, `J${i}`).join(host.code));
-  host.send({ t: 'config', teamSize, difficulty });
-  await host.until((b) => b.room.teamSize === teamSize && b.room.difficulty === difficulty);
+  host.send({ t: 'config', teamSize, difficulty, mode });
+  await host.until((b) => b.room.teamSize === teamSize && b.room.difficulty === difficulty && b.room.mode === mode);
   const roles = teamSize === 4 ? ['operator', 'expert', 'interpreter', 'analyst'] : ['operator', 'expert', 'interpreter'];
   let i = 0;
   const by = { red: {}, blue: {} };
-  for (const team of ['red', 'blue']) for (const role of roles) {
+  for (const team of coop ? ['red'] : ['red', 'blue']) for (const role of roles) {
     const b = bots[i++];
     b.send({ t: 'seat', team, role });
     await b.until((x) => x.me.team === team && x.me.role === role, 2000, 'asiento');

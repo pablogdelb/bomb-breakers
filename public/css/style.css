@@ -246,3 +246,5 @@ button.tile:active { transform: translateY(3px); box-shadow: 0 1px 0 #0a0f16; }
 .banner { z-index: 75; } .stage .device { padding: 8px; }
 .pads { width: min(64vw, 250px); }
 .sw { min-height: 120px; }
+
+.teams.one { grid-template-columns: 1fr; } .race.one { grid-template-columns: 1fr; }

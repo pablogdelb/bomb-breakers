@@ -4,6 +4,7 @@ import { heroBomb } from './art.js';
 import { createModule } from './modules.js';
 import { expertPage, analystSheet, roleCard, gestureGuide, ROLES, MODULE_SHORT, MODULE_TITLES } from './manual.js';
 
+export const BUILD = '2026.10.30-coop2';
 export const TEAM_NAME = { red: 'EQUIPO ROJO', blue: 'EQUIPO AZUL' };
 const DIFF_NAME = { easy: 'FÁCIL · 12 min', normal: 'NORMAL · 10 min', hard: 'DIFÍCIL · 8 min' };
 const ROLE_ORDER = ['operator', 'expert', 'interpreter', 'analyst'];
@@ -121,6 +122,7 @@ export function createLobby({ net }) {
         h('button', { class: 'btn ghost grow', onclick: () => modal(gestureGuide()) }, '🖐 GESTOS'),
         h('button', { class: 'btn ghost grow', disabled: !me.role, onclick: () => me.role && modal(roleCard(me.role)) }, 'MI ROL'),
         h('button', { class: 'btn ghost grow', onclick: () => net.send({ t: 'leave' }) }, 'SALIR')),
+      h('div', { class: 'notice', style: { fontSize: '11px' } }, `versión ${BUILD}`),
       h('div', { class: 'row' },
         h('button', { class: 'btn ghost grow', onclick: (e) => { setSound(!settings.sound); e.target.textContent = settings.sound ? '🔊 SONIDO: SÍ' : '🔇 SONIDO: NO'; sfx.click(); } }, settings.sound ? '🔊 SONIDO: SÍ' : '🔇 SONIDO: NO'),
         h('button', { class: 'btn ghost grow', onclick: (e) => { setMotion(!settings.motion); e.target.textContent = settings.motion ? '✨ ANIMACIONES: SÍ' : '✨ ANIMACIONES: NO'; } }, settings.motion ? '✨ ANIMACIONES: SÍ' : '✨ ANIMACIONES: NO')));
@@ -219,7 +221,7 @@ export function createGame({ net }) {
     if (!prev || prev.room.status === 'lobby') deadShown = false;
     const t = match.teams[me.team];
     who.innerHTML = '';
-    who.append(h('span', { class: `team-tag ${me.team}` }, TEAM_NAME[me.team]), h('b', null, ROLES[me.role].name));
+    who.append(h('span', { class: `team-tag ${me.team}` }, TEAM_NAME[me.team]), h('b', null, ROLES[me.role]?.name || 'SIN ROL'));
     clear(strikes);
     for (let i = 0; i < t.maxErrors; i++) strikes.append(h('span', { class: `led ${i < t.errors ? 'on' : ''}` }));
     clear(race);
@@ -247,7 +249,16 @@ export function createGame({ net }) {
         stage.append(comp.el);
         stage.classList.toggle('gray', me.role === 'operator');
       }
-      comp.update(st.module.view, st.module.type);
+      try {
+        if (!st.module.view) throw new Error('sin vista para el rol');
+        comp.update(st.module.view, st.module.type);
+      } catch (e) {
+        console.error(e);
+        clear(stage);
+        stage.append(h('div', { class: 'panel stack', 'data-testid': 'view-error' }, h('h3', null, 'NO SE PUEDE MOSTRAR TU PANTALLA'),
+          h('p', null, `Rol: ${me.role} · módulo: ${st.module.type} · versión ${BUILD}`), h('button', { class: 'btn primary block', onclick: () => location.reload() }, 'RECARGAR')));
+        comp = null; compKey = null;
+      }
     } else if (room.status === 'countdown') {
       comp?.destroy?.(); comp = null; compKey = null; clear(stage); clear(modname);
       stage.append(h('div', { class: 'notice' }, 'Preparados…'));

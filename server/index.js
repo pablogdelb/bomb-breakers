@@ -12,6 +12,7 @@ const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json', '.webmanifest': 'application/manifest+json',
 };
+export const BUILD = '2026.10.30-coop2';
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 export function createGameServer({ port = Number(process.env.PORT || 3000), host = '0.0.0.0', fixedSeed = null, timeScale, createLimit = 10 } = {}) {
@@ -35,14 +36,14 @@ export function createGameServer({ port = Number(process.env.PORT || 3000), host
       const url = new URL(req.url, 'http://x');
       if (url.pathname === '/health') {
         res.writeHead(200, { 'Content-Type': 'application/json', ...headers });
-        return res.end(JSON.stringify({ ok: true, rooms: rooms.size }));
+        return res.end(JSON.stringify({ ok: true, rooms: rooms.size, build: BUILD }));
       }
       let file = decodeURIComponent(url.pathname);
       if (file === '/' || /^\/[A-Za-z0-9]{6}$/.test(file)) file = '/index.html'; // /ABC123 → enlace de invitación
       const full = path.normalize(path.join(PUBLIC, file));
       if (!full.startsWith(PUBLIC)) { res.writeHead(403, headers); return res.end(); }
       const data = await readFile(full);
-      const cache = file === '/index.html' ? 'no-cache' : 'public, max-age=300';
+      const cache = 'no-cache'; // el cliente siempre se revalida: evita mezclar versiones viejas en los móviles
       res.writeHead(200, { 'Content-Type': MIME[path.extname(full)] || 'application/octet-stream', 'Cache-Control': cache, ...headers });
       res.end(data);
     } catch {

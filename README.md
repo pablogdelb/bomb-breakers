@@ -33,12 +33,21 @@ Para jugar en red local abre `http://<IP-de-tu-ordenador>:3000` en los móviles 
 
 | | Fácil | Normal | Difícil |
 |---|---|---|---|
-| Tiempo | 12 min | 10 min | 8 min |
+| Tiempo | 14 min | 12 min | 10 min |
 | Módulos | 3 | 4 + protocolo final | 5 + protocolo final |
 | Errores | 4 (alarma, alarma, −20 s, explosión) | 3 (alarma, −20 s, explosión) | 3 |
 
 ## Minijuegos
-Cables encadenados · Caja fuerte · Simón corrompido · Circuito de emergencia (sistema lineal sobre GF(2)) · Jeroglíficos · Protocolo final. Cada uno implementa `generate(seed, difficulty, teamSize)`, `projectForRole`, `validateAction`, `solve` (`server/engine/`). Las reglas exactas están en el manual en pantalla (`public/js/manual.js`) y en los tests.
+| Módulo | Tamaño (fácil → difícil) | Datos del analista (4v4) |
+|---|---|---|
+| Cables encadenados | 8 cables, 2 → 4 cortes con reglas distintas por paso | Un parámetro 0/1 **por cada corte** |
+| Caja fuerte | Cuadrícula 4×4, código de 3 → 5 cifras | Parámetros A, B (y C) |
+| Simón corrompido | 3 → 5 destellos, dos tablas de transformación | Qué tabla (A/B) **y** si invertir |
+| Circuito de emergencia (GF(2)) | 4 → 6 interruptores, 3 → 5 pilotos | Lista de pilotos con el objetivo invertido |
+| Jeroglíficos | 9 símbolos, 3 → 5 a pulsar, dos listas de prioridad | Qué lista (A/B) **y** si invertir |
+| Protocolo final | Una cifra por módulo (4 o 5), fórmula con paridad | Un modificador distinto **por cada cifra** |
+
+Cada dato del analista cambia siempre la respuesta (lo comprueban los tests). Sin analista (3v3) esos datos valen un valor fijo que indica el manual, pero el resto de reglas es igual de exigente. Cada uno implementa `generate(seed, difficulty, teamSize)`, `projectForRole`, `validateAction`, `solve` (`server/engine/`). Las reglas exactas están en el manual en pantalla (`public/js/manual.js`) y en los tests.
 
 ## Arquitectura
 - **Servidor Node.js + WebSocket (`ws`)**, autoritativo: salas, roles, bomba, temporizador, errores, victoria y reconexión. Sirve también el cliente: **un único servicio y un único enlace**.

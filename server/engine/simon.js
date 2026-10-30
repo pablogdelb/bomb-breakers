@@ -1,36 +1,43 @@
-// MINIJUEGO 3 · SIMÓN CORROMPIDO
+// MINIJUEGO 3 · SIMÓN CORROMPIDO (3–5 destellos, dos tablas de transformación, el analista elige tabla e inversión)
 import { makeRng } from '../rng.js';
 import { COLORS, invalid, isInt } from './common.js';
 
 export const type = 'simon';
 export const rating = 4;
-const LENGTH = { easy: 2, normal: 3, hard: 4 };
+const LENGTH = { easy: 3, normal: 4, hard: 5 };
 
 // Posiciones de los botones: 0 arriba, 1 derecha, 2 abajo, 3 izquierda.
 export function expectedPositions(p) {
   const observed = p.sequence.map((pos) => p.buttons[pos]);
   const ordered = p.reverse ? observed.slice().reverse() : observed;
-  return ordered.map((c) => p.buttons.indexOf(p.map[c]));
+  return ordered.map((c) => p.buttons.indexOf(p.tables[p.table][c]));
 }
+
+const derangement = (rng) => {
+  for (;;) {
+    const t = rng.shuffle(COLORS);
+    if (!COLORS.some((c, i) => c === t[i])) return Object.fromEntries(COLORS.map((c, i) => [c, t[i]]));
+  }
+};
 
 export function generate(seed, difficulty, teamSize) {
   const rng = makeRng(seed);
   const len = LENGTH[difficulty];
-  for (let attempt = 0; attempt < 10000; attempt++) {
+  for (let attempt = 0; attempt < 20000; attempt++) {
     const buttons = rng.shuffle(COLORS);
-    // biyección sin puntos fijos: el color mostrado nunca es el que hay que pulsar
-    const target = rng.shuffle(COLORS);
-    if (COLORS.some((c, i) => c === target[i])) continue;
-    const map = Object.fromEntries(COLORS.map((c, i) => [c, target[i]]));
+    const A = derangement(rng);
+    const B = derangement(rng);
+    if (COLORS.some((c) => A[c] === B[c])) continue; // las dos tablas difieren en todos los colores
     const sequence = Array.from({ length: len }, () => rng.int(4));
+    const table = teamSize === 4 ? rng.int(2) : 0;
     const reverse = teamSize === 4 ? rng.bool() : false;
-    const p = { type, teamSize, buttons, map, sequence, reverse, len };
+    const p = { type, teamSize, buttons, tables: [A, B], sequence, table, reverse, len };
     const answer = expectedPositions(p);
     if (teamSize === 4) {
-      const alt = expectedPositions({ ...p, reverse: !reverse });
-      if (alt.join() === answer.join()) continue;
+      // las 4 combinaciones (tabla × inversión) dan respuestas distintas: ambos datos del analista importan
+      const combos = [0, 1].flatMap((t) => [false, true].map((r) => expectedPositions({ ...p, table: t, reverse: r }).join()));
+      if (new Set(combos).size !== 4) continue;
     }
-    // la secuencia vista nunca coincide con la respuesta
     if (answer.join() === sequence.join()) continue;
     p.answer = answer;
     return p;
@@ -45,9 +52,8 @@ export function projectForRole(p, role, state) {
     return { kind: type, sequence: p.sequence, progress: state.progress, replay: state.replay };
   if (role === 'interpreter')
     return { kind: type, buttons: p.buttons, sequence: p.sequence, progress: state.progress, replay: state.replay };
-  if (role === 'expert')
-    return { kind: type, map: p.map, analyst: p.teamSize === 4 };
-  if (role === 'analyst') return { kind: type, reverse: p.reverse ? 1 : 0 };
+  if (role === 'expert') return { kind: type, tables: p.tables, analyst: p.teamSize === 4 };
+  if (role === 'analyst') return { kind: type, table: p.table ? 'B' : 'A', reverse: p.reverse ? 1 : 0 };
   return null;
 }
 

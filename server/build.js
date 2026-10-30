@@ -1,1 +1,1 @@
-export const BUILD = '2026.10.30-coop4';
+export const BUILD = '2026.10.30-dificil1';

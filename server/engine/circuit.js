@@ -1,10 +1,10 @@
-// MINIJUEGO 4 · CIRCUITO DE EMERGENCIA  (sistema lineal sobre GF(2))
+// MINIJUEGO 4 · CIRCUITO DE EMERGENCIA  (sistema lineal sobre GF(2); el analista indica pilotos con objetivo invertido)
 import { makeRng } from '../rng.js';
 import { COLORS, invalid } from './common.js';
 
 export const type = 'circuit';
 export const rating = 5;
-const SIZE = { easy: [3, 2], normal: [4, 3], hard: [5, 4] }; // [interruptores, pilotos]
+const SIZE = { easy: [4, 3], normal: [5, 4], hard: [6, 5] }; // [interruptores, pilotos]
 
 // cols[i] = máscara de pilotos que alterna el interruptor i. Resuelve A·x = b (XOR) con Gauss-Jordan.
 export function solveGF2(cols, m, b) {
@@ -38,10 +38,11 @@ export function solveGF2(cols, m, b) {
 
 export const applySwitches = (cols, sel) => sel.reduce((acc, on, i) => (on ? acc ^ cols[i] : acc), 0);
 
-export function targetMask(pilotColors, goal, invert) {
+// Objetivo: pilotos del color meta ENCENDIDOS y el resto APAGADOS, salvo los pilotos de `flip` (máscara), que van al revés.
+export function targetMask(pilotColors, goal, flip) {
   let t = 0;
   pilotColors.forEach((c, j) => {
-    if ((c === goal) !== !!invert) t |= 1 << j;
+    if ((c === goal) !== (((flip >> j) & 1) === 1)) t |= 1 << j;
   });
   return t;
 }
@@ -56,14 +57,14 @@ export function generate(seed, difficulty, teamSize) {
     const pilotColors = Array.from({ length: m }, () => rng.pick(COLORS));
     const goal = rng.pick(pilotColors);
     if (pilotColors.every((c) => c === goal)) continue;
-    const invert = teamSize === 4 ? rng.bool() : false;
-    const target = targetMask(pilotColors, goal, invert);
+    const flip = teamSize === 4 ? 1 + rng.int((1 << m) - 1) : 0;
+    if (teamSize === 4 && (flip & (flip - 1)) === 0) continue; // el analista indica al menos 2 pilotos invertidos
+    const target = targetMask(pilotColors, goal, flip);
     const hidden = Array.from({ length: k }, () => rng.bool());
     const delta = applySwitches(cols, hidden);
     if (delta === 0) continue; // el estado inicial debe diferir del objetivo
     const initial = target ^ delta;
-    if (teamSize === 4 && targetMask(pilotColors, goal, !invert) === target) continue;
-    return { type, teamSize, k, m, cols, pilotColors, goal, invert, target, initial };
+    return { type, teamSize, k, m, cols, pilotColors, goal, flip, target, initial };
   }
   throw new Error('circuit: no se pudo generar');
 }
@@ -82,7 +83,7 @@ export function projectForRole(p, role) {
       kind: type, goal: p.goal, analyst: p.teamSize === 4, pilots: p.m,
       wiring: p.cols.map((c, i) => ({ sw: i + 1, toggles: bits(c, p.m).map((b, j) => (b ? j + 1 : 0)).filter(Boolean) })),
     };
-  if (role === 'analyst') return { kind: type, invert: p.invert ? 1 : 0 };
+  if (role === 'analyst') return { kind: type, flip: bits(p.flip, p.m).map((b, j) => (b ? j + 1 : 0)).filter(Boolean) };
   return null;
 }
 

@@ -3,7 +3,7 @@ import { s } from './dom.js';
 export const HEX = { red: '#ff3b3b', blue: '#2f8cff', green: '#2ee06f', yellow: '#ffd21f' };
 export const COLOR_NAMES = { red: 'ROJO', blue: 'AZUL', green: 'VERDE', yellow: 'AMARILLO' };
 export const COLOR_ABBR = { red: 'R', blue: 'AZ', green: 'V', yellow: 'AM' };
-export const SYM_NAMES = { sol: 'SOL', luna: 'LUNA', ancla: 'ANCLA', rombo: 'ROMBO', espiral: 'ESPIRAL', rayo: 'RAYO' };
+export const SYM_NAMES = { sol: 'SOL', luna: 'LUNA', ancla: 'ANCLA', rombo: 'ROMBO', espiral: 'ESPIRAL', rayo: 'RAYO', estrella: 'ESTRELLA', gota: 'GOTA', cruz: 'CRUZ' };
 
 /** Símbolos originales del módulo Jeroglíficos (viewBox 100x100). */
 export function symbol(name, color = '#dfe6ef') {
@@ -31,6 +31,13 @@ export function symbol(name, color = '#dfe6ef') {
       svg.append(s('polyline', { ...st, points: pts.join(' ') }));
       break;
     }
+    case 'estrella': {
+      const pts = Array.from({ length: 10 }, (_, i) => { const r = i % 2 ? 19 : 42, a = -Math.PI / 2 + (i * Math.PI) / 5; return `${(50 + r * Math.cos(a)).toFixed(1)},${(53 + r * Math.sin(a)).toFixed(1)}`; });
+      svg.append(s('polygon', { ...st, points: pts.join(' '), fill: color, 'fill-opacity': .2 }));
+      break;
+    }
+    case 'gota': svg.append(s('path', { ...st, d: 'M50 8 C50 8 20 46 20 64 A30 30 0 0 0 80 64 C80 46 50 8 50 8 Z', fill: color, 'fill-opacity': .2 })); break;
+    case 'cruz': svg.append(s('polygon', { ...st, points: '38,10 62,10 62,38 90,38 90,62 62,62 62,90 38,90 38,62 10,62 10,38 38,38', fill: color, 'fill-opacity': .2 })); break;
     case 'rayo': svg.append(s('polygon', { ...st, points: '58,6 24,54 46,54 38,94 78,40 54,40', fill: color, 'fill-opacity': .25 })); break;
   }
   return svg;

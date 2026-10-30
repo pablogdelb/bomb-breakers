@@ -14,9 +14,9 @@ export const MODULE_NAMES = {
 
 // Parámetros de dificultad (los tiempos se pueden escalar con la variable TIME_SCALE para pruebas de jugabilidad)
 export const DIFFICULTIES = {
-  easy: { minutes: 12, modules: 3, protocol: false, maxErrors: 4, penaltyAt: 3 },
-  normal: { minutes: 10, modules: 4, protocol: true, maxErrors: 3, penaltyAt: 2 },
-  hard: { minutes: 8, modules: 5, protocol: true, maxErrors: 3, penaltyAt: 2 },
+  easy: { minutes: 14, modules: 3, protocol: false, maxErrors: 4, penaltyAt: 3 },
+  normal: { minutes: 12, modules: 4, protocol: true, maxErrors: 3, penaltyAt: 2 },
+  hard: { minutes: 10, modules: 5, protocol: true, maxErrors: 3, penaltyAt: 2 },
 };
 export const PENALTY_MS = 20000;
 const BASIC = ['cables', 'safe', 'simon', 'circuit', 'glyphs'];
@@ -35,10 +35,10 @@ export function generateBomb(seed, difficulty, teamSize) {
     .map((x) => x.t);
   const modules = types.map((t, i) => ({ type: t, puzzle: MODULES[t].generate(`${seed}|${i}|${t}`, difficulty, teamSize) }));
   if (cfg.protocol) {
-    const last4 = types.slice(-4).map((t, i, arr) => `MÓDULO ${types.length - arr.length + i + 1} · ${MODULE_NAMES[t]}`);
+    const labels = types.map((t, i) => `MÓDULO ${i + 1} · ${MODULE_NAMES[t]}`); // una cifra por módulo
     modules.push({
       type: 'protocol',
-      puzzle: protocol.generate(`${seed}|protocol`, difficulty, teamSize, { labels: last4 }),
+      puzzle: protocol.generate(`${seed}|protocol`, difficulty, teamSize, { labels }),
     });
   }
   return { seed, difficulty, teamSize, modules };

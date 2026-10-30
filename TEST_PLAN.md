@@ -1,13 +1,13 @@
 # Plan de pruebas
 
-## Automáticas (`npm test`, 37 tests)
+## Automáticas (`npm test`, 39 tests)
 **Motor (`test/engine.test.js`)**
 - 200 bombas por cada combinación dificultad × tamaño de equipo (6 combinaciones): generación determinista por semilla, estructura correcta (nº de módulos, protocolo solo en normal/difícil), y **resolubilidad**: la solución de `solve()` es aceptada paso a paso por `validateAction`.
 - Verificadores **independientes** (reimplementados de otro modo) para cables, caja fuerte, simón, protocolo; circuito comprobado por **búsqueda exhaustiva** frente al solver GF(2); jeroglíficos con conjunto correcto único.
 - Respuestas incorrectas rechazadas (todas las combinaciones de interruptores incorrectas, todos los cables/botones incorrectos, cada dígito alterado) y entradas mal formadas = `invalid` (no suman error).
 - Reparto de información: ninguna vista contiene claves secretas; el operador nunca recibe colores; el experto no recibe datos de la bomba; el intérprete no recibe reglas.
 - **Ningún rol resuelve solo**: variando únicamente los datos que ese rol no ve, la respuesta cambia en >50 % de las mutaciones (operador, experto, intérprete).
-- **El analista es imprescindible** en 4v4: su parámetro cambia la respuesta en el 100 % de las bombas. En 3v3 los parámetros son los valores fijos del manual.
+- **El analista es imprescindible** en 4v4: **cada uno de sus datos** (parámetro de cada corte, tabla, inversión, pilotos invertidos, modificadores) cambia la respuesta en el 100 % de las bombas; y tiene al menos 2 datos por módulo. En 3v3 los parámetros son los valores fijos del manual.
 - Igualdad: ambos equipos reciben la misma bomba y estados iniciales idénticos pero independientes.
 
 **Multijugador (`test/multiplayer.test.js`, WebSocket real)**

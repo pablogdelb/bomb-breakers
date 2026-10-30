@@ -29,15 +29,15 @@ function keypad({ n, label, onSubmit, testid }) {
 function cables(role, ctx) {
   const op = role === 'operator';
   let sel = null, shown = [];
-  const svg = s('svg', { viewBox: '0 0 360 290', class: 'svgwrap', 'data-testid': 'cables' });
+  const svg = s('svg', { viewBox: '0 0 360 336', class: 'svgwrap', 'data-testid': 'cables' });
   const btn = h('button', { class: 'btn danger block', disabled: true, 'data-testid': 'cut-btn', onclick: () => { if (sel) { sfx.snip(); ctx.send({ type: 'cut', pos: sel }); } } }, 'SELECCIONA UN CABLE');
   const info = h('div', { class: 'notice' });
   const el = h('div', { class: 'stack' }, h('div', { class: 'panel screws device' }, svg), op ? btn : null, info);
   function draw(v) {
     clear(svg);
-    svg.append(s('rect', { x: 4, y: 4, width: 352, height: 282, rx: 14, fill: '#0f1620', stroke: '#2c3a4d', 'stroke-width': 2 }));
+    svg.append(s('rect', { x: 4, y: 4, width: 352, height: 328, rx: 14, fill: '#0f1620', stroke: '#2c3a4d', 'stroke-width': 2 }));
     for (const c of v.cables) {
-      const y = 34 + (c.pos - 1) * 44, cut = v.cut.includes(c.pos);
+      const y = 30 + (c.pos - 1) * 39, cut = v.cut.includes(c.pos);
       const a = (((c.pos * 37) % 5) - 2) * 9, b = (((c.pos * 53) % 5) - 2) * 9;
       const col = op ? GRAY : HEX[c.color];
       const g = s('g', { 'data-pos': c.pos });
@@ -67,7 +67,7 @@ function cables(role, ctx) {
     update(v) {
       if (sel && v.cut.includes(sel)) { sel = null; btn.disabled = true; btn.textContent = 'SELECCIONA UN CABLE'; }
       draw(v);
-      info.textContent = op ? 'Corta solo lo que te indique tu intérprete.' : 'Describe con gestos al experto los colores y números de los cables.';
+      info.textContent = op ? 'Corta solo lo que te indique tu intérprete.' : 'Describe con gestos al experto los colores y números de los cables, y cuál fue el último cortado.';
     },
   };
 }
@@ -75,8 +75,8 @@ function cables(role, ctx) {
 /* ---------------- CAJA FUERTE ---------------- */
 function safe(role, ctx) {
   const op = role === 'operator';
-  const grid = h('div', { class: 'grid3', 'data-testid': 'safe-grid' });
-  const pad = op ? keypad({ n: 4, label: 'ABRIR CAJA', testid: 'safe', onSubmit: (digits) => ctx.send({ type: 'code', digits }) }) : null;
+  const grid = h('div', { class: 'grid4', 'data-testid': 'safe-grid' });
+  const pad = op ? keypad({ n: 3, label: 'ABRIR CAJA', testid: 'safe', onSubmit: (digits) => ctx.send({ type: 'code', digits }) }) : null;
   const el = h('div', { class: 'stack' }, h('div', { class: 'panel screws device' }, grid), pad?.el,
     op ? null : h('div', { class: 'notice' }, 'Tú ves los colores de la caja. El operador solo ve los números.'));
   return {
@@ -193,6 +193,7 @@ function protocol(role, ctx) {
     el: h('div', { class: 'stack' }, h('div', { class: 'panel screws device stack' }, h('div', { class: 'label' }, 'SELLOS DE MÓDULO'), list), pad?.el,
       h('div', { class: 'notice' }, op ? 'Dicta los identificadores al experto (puede oírte). Introduce el código que te indique el intérprete.' : 'Ves el color de cada sello. Gestos al experto, en el orden de la lista.')),
     update(v) {
+      pad?.setN(v.entries.length);
       clear(list);
       v.entries.forEach((e, i) => list.append(h('div', { class: 'entry' }, h('span', { class: 'label' }, `${i + 1}`), h('span', { class: 'grow', style: { fontSize: '12px' } }, e.label),
         op ? h('span', { class: 'id' }, e.id) : h('span', { class: `swatch ${e.color}`, style: { minWidth: '48px', height: '34px' } }, COLOR_ABBR[e.color]))));

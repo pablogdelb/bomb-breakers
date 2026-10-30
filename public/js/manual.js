@@ -11,52 +11,60 @@ export const MODULE_SHORT = { cables: 'CABLES', safe: 'CAJA', simon: 'SIMÓN', c
 const sw = (c, name = true) => h('span', null, h('span', { class: `swatch ${c}` }, COLOR_ABBR[c]), name ? ` ${COLOR_NAMES[c]}` : '');
 const B = (t) => h('b', null, t);
 
+const PRIO = (list) => h('div', { class: 'prio' }, list.flatMap((sy, i) => [
+  i ? h('span', { class: 'arrow' }, '→') : null,
+  h('span', { style: { textAlign: 'center', fontSize: '9px' } }, h('span', { class: 'sym' }, symbol(sy, '#1c1a14')), h('br'), SYM_NAMES[sy]),
+]));
+
 function cablesPage(v) {
-  const steps = [
-    h('li', null, 'Corta el cable ', sw('red'), ' de ', B('MAYOR posición'), ' (el número más alto).'),
-    h('li', null, 'Entre los cables ', sw('blue'), ', corta el que esté ', B('más cerca en posición'), ' del cable cortado justo antes. Si hay empate, el de ', B('menor posición'), '.'),
-    h('li', null, 'Entre los cables ', sw('green'), ' que queden, corta el de ', B('menor posición'), '. Si no queda ninguno ', sw('green', false), ', corta el ', sw('yellow'), ' de menor posición.'),
+  const rows = [
+    ['1', h('span', null, 'Corta el ', sw('red'), ' de ', B('MAYOR'), ' posición.'), h('span', null, 'El ', sw('red', false), ' de ', B('MENOR'), ' posición.')],
+    ['2', h('span', null, 'Entre los ', sw('blue'), ': el ', B('MÁS CERCANO'), ' (en posición) al último cortado. Empate: la menor posición.'), h('span', null, 'Entre los azules: el ', B('MÁS LEJANO'), ' al último cortado. Empate: la menor posición.')],
+    ['3', h('span', null, 'Entre los ', sw('green'), ': el de ', B('MENOR'), ' posición. Si no queda ninguno, el ', sw('yellow'), ' de menor posición.'), h('span', null, 'Igual, pero el de ', B('MAYOR'), ' posición (verdes; si no hay, amarillos).')],
+    ['4', h('span', null, 'Entre ', sw('green', false), ' y ', sw('yellow', false), ' que queden: el ', B('MÁS LEJANO'), ' al último cortado. Empate: la menor posición.'), h('span', null, 'Entre verdes y amarillos: el ', B('MÁS CERCANO'), ' al último cortado. Empate: la menor posición.')],
   ].slice(0, v.steps);
   return [
-    h('p', null, `Esta bomba exige ${v.steps} ${v.steps === 1 ? 'corte' : 'cortes'}, ` , B('en este orden'), '. Las posiciones son los números 1–6 de los cables.'),
-    h('ol', null, steps),
-    h('h4', null, 'PARÁMETRO'),
+    h('p', null, `Hay 8 cables (posiciones 1–8) y debes ordenar ${v.steps} cortes, `, B('en este orden'), '. Cada paso tiene dos variantes según su parámetro (0 ó 1).'),
+    h('table', null, h('tr', null, h('th', null, 'PASO'), h('th', null, 'PARÁMETRO = 0'), h('th', null, 'PARÁMETRO = 1')),
+      rows.map(([n, a, b2]) => h('tr', null, h('td', null, B(n)), h('td', { style: { textAlign: 'left', fontSize: '12px' } }, a), h('td', { style: { textAlign: 'left', fontSize: '12px' } }, b2)))),
+    h('h4', null, 'PARÁMETROS'),
     v.analyst
-      ? h('div', null, h('p', null, 'Pregunta al ', B('ANALISTA'), ' su parámetro (0 ó 1):'),
-        h('ul', null, h('li', null, B('0'), ' → reglas normales (arriba).'),
-          h('li', null, B('1'), ' → el primer cable ', sw('red'), ' es el de ', B('MENOR'), ' posición, y los empates posteriores se resuelven con la posición ', B('MAYOR'), '.')))
-      : h('p', null, 'Sin analista el parámetro vale siempre ', B('0'), ' (reglas normales).'),
-    h('div', { class: 'note' }, 'Un corte equivocado suma un error y el cable no se pierde. Tú no ves la bomba: necesitas los colores (intérprete) y que el operador ejecute.'),
+      ? h('p', null, 'El ', B('ANALISTA'), ` te da ${v.steps} parámetros, uno por paso (0 ó 1). Pregúntale cada vez el del paso en el que estás.`)
+      : h('p', null, 'Sin analista todos los parámetros valen ', B('0'), '.'),
+    h('div', { class: 'note' }, 'Un corte equivocado suma un error y el cable no se pierde. El intérprete te dice los colores y el último cable cortado; el operador ejecuta.'),
   ];
 }
 
 function safePage(v) {
   const rows = [
-    ['1ª', h('span', null, 'Suma de los números de las casillas ', sw('red'), '. Quédate con la ', B('cifra de las unidades'), '.')],
-    ['2ª', h('span', null, 'Número de casillas ', sw('blue'), ' + ', B('PARÁMETRO'), '. Cifra de las unidades.')],
-    ['3ª', h('span', null, 'Número de la casilla ', sw('green'), ' que quede ', B('más abajo y a la derecha'), ' (orden de lectura: izquierda→derecha, arriba→abajo). Si no hay ninguna verde: ', B('0'), '.')],
-    ['4ª', h('span', null, 'Suma de las tres cifras anteriores. Cifra de las unidades.')],
+    ['1ª', h('span', null, 'Suma de los números de las casillas ', sw('red'), '. Quédate con las ', B('unidades'), '.')],
+    ['2ª', h('span', null, 'Nº de casillas ', sw('blue'), ' + ', B('A'), '. Unidades.')],
+    ['3ª', h('span', null, 'Número de la casilla ', sw('green'), ' que quede ', B('más abajo y a la derecha'), ' (orden de lectura: izquierda→derecha, arriba→abajo; 0 si no hay verdes) + ', B('B'), '. Unidades.')],
+    ['4ª', h('span', null, 'Suma de las tres cifras anteriores. Unidades.')],
+    ['5ª', h('span', null, B('3 ×'), ' nº de casillas ', sw('yellow'), ' + ', B('C'), '. Unidades.')],
   ].slice(0, v.digits);
   return [
-    h('p', null, `Combinación de ${v.digits} cifras. Las casillas amarillas no cuentan.`),
-    h('table', null, h('tr', null, h('th', null, 'CIFRA'), h('th', null, 'REGLA')), rows.map(([a, b]) => h('tr', null, h('td', null, a), h('td', { style: { textAlign: 'left' } }, b)))),
-    h('h4', null, 'PARÁMETRO'),
-    v.analyst ? h('p', null, 'Lo conoce el ', B('ANALISTA'), ' (número de 0 a 3).') : h('p', null, 'Sin analista el parámetro vale siempre ', B('1'), '.'),
-    h('div', { class: 'note' }, 'El operador ve los números; el intérprete, los números y colores. Tú calculas. Indica el código con los dedos.'),
+    h('p', null, `Combinación de ${v.digits} cifras sobre una cuadrícula de 4×4 (16 casillas).`),
+    h('table', null, h('tr', null, h('th', null, 'CIFRA'), h('th', null, 'REGLA')), rows.map(([a, b2]) => h('tr', null, h('td', null, a), h('td', { style: { textAlign: 'left' } }, b2)))),
+    h('h4', null, 'PARÁMETROS'),
+    v.analyst
+      ? h('p', null, 'El ', B('ANALISTA'), ' te da ', B('A'), ' (0–3), ', B('B'), ' (0–9)', v.digits >= 5 ? [' y ', B('C'), ' (0–9)'] : '', '.')
+      : h('p', null, 'Sin analista: ', B(`A = ${v.fixed.A}`), ', ', B(`B = ${v.fixed.B}`), v.digits >= 5 ? [', ', B(`C = ${v.fixed.C}`)] : '', '.'),
+    h('div', { class: 'note' }, 'Las casillas de un color que no aparece en las reglas no cuentan. El operador ve los números; el intérprete, números y colores.'),
   ];
 }
 
 function simonPage(v) {
   const order = ['red', 'blue', 'green', 'yellow'];
   return [
-    h('p', null, 'Los destellos ', B('NO'), ' se repiten tal cual: cada color visto se sustituye por otro según esta tabla.'),
-    h('table', null, h('tr', null, h('th', null, 'SI SE ENCIENDE'), h('th', null, ''), h('th', null, 'PULSA')),
-      order.map((c) => h('tr', null, h('td', null, sw(c)), h('td', null, '→'), h('td', null, sw(v.map[c]))))),
-    h('h4', null, 'ORDEN'),
+    h('p', null, 'Los destellos ', B('NO'), ' se repiten tal cual: cada color visto se sustituye por otro. Hay ', B('dos tablas'), ' (A y B).'),
+    h('table', null, h('tr', null, h('th', null, 'SI SE ENCIENDE'), h('th', null, 'TABLA A → PULSA'), h('th', null, 'TABLA B → PULSA')),
+      order.map((c) => h('tr', null, h('td', null, sw(c)), h('td', null, sw(v.tables[0][c])), h('td', null, sw(v.tables[1][c]))))),
+    h('h4', null, 'TABLA Y ORDEN'),
     v.analyst
-      ? h('p', null, 'Pregunta al ', B('ANALISTA'), ': si dice ', B('INVERTIR = 1'), ', primero ', B('invierte el orden'), ' de la secuencia vista y después transforma los colores. Si dice 0, mantén el orden.')
-      : h('p', null, 'Sin analista, la secuencia ', B('nunca'), ' se invierte.'),
-    h('div', { class: 'note' }, 'Ejemplo: se encienden Rojo → Verde con la tabla Rojo→Azul, Verde→Rojo: hay que pulsar Azul → Rojo. El intérprete traduce colores a posiciones (arriba, derecha, abajo, izquierda) para el operador. Si el operador se equivoca, la secuencia se reinicia.'),
+      ? h('p', null, 'El ', B('ANALISTA'), ' te dice dos cosas: ', B('qué tabla usar (A o B)'), ' y ', B('INVERTIR (sí/no)'), '. Si invertir = sí, primero das la vuelta al orden de la secuencia vista y después transformas los colores.')
+      : h('p', null, 'Sin analista: usa siempre la ', B('tabla A'), ' y ', B('nunca'), ' inviertas la secuencia.'),
+    h('div', { class: 'note' }, 'El intérprete traduce colores a posiciones (arriba, derecha, abajo, izquierda) para el operador. Si el operador se equivoca, la secuencia se reinicia y suma un error. El operador puede pedir repetir la secuencia.'),
   ];
 }
 
@@ -67,9 +75,9 @@ function circuitPage(v) {
       v.wiring.map((w) => h('tr', null, h('td', null, B(w.sw)), h('td', null, w.toggles.map((t) => `P${t}`).join(' · '))))),
     h('h4', null, 'OBJETIVO'),
     h('p', null, 'Los pilotos de color ', sw(v.goal), ' deben quedar ', B('ENCENDIDOS'), ' y todos los demás ', B('APAGADOS'), '.'),
-    v.analyst ? h('p', null, 'Si el ', B('ANALISTA'), ' dice ', B('INVERTIR = 1'), ': al revés (los de ese color APAGADOS, el resto ENCENDIDOS).') : h('p', null, 'Sin analista no hay inversión.'),
+    v.analyst ? h('p', null, 'Excepción: el ', B('ANALISTA'), ' te dirá una lista de ', B('pilotos invertidos'), ': esos van ', B('al revés'), ' (si tocaría encendido, apagado; y viceversa).') : h('p', null, 'Sin analista no hay pilotos invertidos.'),
     h('h4', null, 'MÉTODO'),
-    h('p', null, 'Conoces el esquema. Necesitas el estado actual (apagado/encendido: lo ve el operador) y los colores (intérprete). Pulsar un interruptor dos veces lo anula: cada uno se usa 0 ó 1 vez. Indica al intérprete qué interruptores activar.'),
+    h('p', null, 'Necesitas el estado actual (encendido/apagado: lo ve el operador) y los colores (intérprete). Un interruptor pulsado dos veces se anula: cada uno se usa 0 ó 1 vez. Calcula qué interruptores activar y díselo al intérprete.'),
   ];
 }
 
@@ -77,28 +85,27 @@ function glyphsPage(v) {
   return [
     h('p', null, 'Debe pulsarse cada símbolo que tenga la marca de color ', sw(v.activation),
       v.block ? [' y que ', B('NO'), ' tenga también la marca ', sw(v.block), '.'] : '.'),
-    h('h4', null, 'ORDEN DE PRIORIDAD (de primero a último)'),
-    h('div', { class: 'prio' }, v.priority.flatMap((sy, i) => [
-      i ? h('span', { class: 'arrow' }, '→') : null,
-      h('span', { style: { textAlign: 'center', fontSize: '10px' } }, h('span', { class: 'sym' }, symbol(sy, '#1c1a14')), h('br'), SYM_NAMES[sy]),
-    ])),
+    h('h4', null, 'LISTA A (de primero a último)'), PRIO(v.priorities[0]),
+    h('h4', null, 'LISTA B (de primero a último)'), PRIO(v.priorities[1]),
     v.analyst
-      ? h('p', null, 'Pregunta al ', B('ANALISTA'), ': si dice ', B('INVERTIR = 1'), ', pulsa los símbolos en el orden contrario.')
-      : h('p', null, 'Sin analista el orden nunca se invierte.'),
-    h('div', { class: 'note' }, 'El intérprete ve qué símbolo está en cada posición y sus marcas. Un símbolo equivocado reinicia la secuencia y suma un error.'),
+      ? h('p', null, 'El ', B('ANALISTA'), ' te dice ', B('qué lista usar (A o B)'), ' y ', B('INVERTIR (sí/no)'), '. Con invertir = sí, pulsa en el orden contrario.')
+      : h('p', null, 'Sin analista: lista ', B('A'), ' y orden normal.'),
+    h('div', { class: 'note' }, 'El intérprete ve qué símbolo está en cada posición (3×3) y sus marcas. Un símbolo equivocado reinicia la secuencia y suma un error.'),
   ];
 }
 
 function protocolPage(v) {
   return [
-    h('p', null, 'Último paso. Construye un código de ', B('4 cifras'), ' (una por cada sello de la lista, en ese orden):'),
-    h('div', { class: 'formula' }, 'cifra = (IDENTIFICADOR + ÍNDICE DE COLOR + MODIFICADOR) mod 10'),
-    h('table', null, h('tr', null, ['red', 'blue', 'green', 'yellow'].map((c) => h('th', null, sw(c, false)))), h('tr', null, [1, 2, 3, 4].map((n) => h('td', null, B(n))))),
-    h('ul', null, h('li', null, B('IDENTIFICADOR'), ': lo ve el operador (puede decírtelo en voz alta).'), h('li', null, B('COLOR del sello'), ': lo ve el intérprete (te lo indica con gestos).'),
-      h('li', null, B('MODIFICADOR'), v.analyst ? ': te lo da el analista (con gestos).' : [': sin analista vale siempre ', B('0'), '.'])),
+    h('p', null, 'Último paso. Hay ', B('una cifra por cada módulo'), ' de la lista (en ese orden):'),
+    h('div', { class: 'formula' }, 'cifra = (ID + COLOR × K + MOD) mod 10'),
+    h('ul', null,
+      h('li', null, B('ID'), ': identificador de 0–9 del módulo (lo ve el operador y puede decírtelo).'),
+      h('li', null, B('COLOR'), ': índice del sello (lo ve el intérprete): ', sw('red', false), '=1 ', sw('blue', false), '=2 ', sw('green', false), '=3 ', sw('yellow', false), '=4.'),
+      h('li', null, B('K'), ' = ', B('2'), ' si el ID es ', B('PAR'), ' (0,2,4,6,8) y ', B('1'), ' si es ', B('IMPAR'), '.'),
+      h('li', null, B('MOD'), v.analyst ? ': te lo da el analista, ' : ': sin analista vale siempre 0. ', v.analyst ? B('uno distinto para cada cifra') : '', v.analyst ? '.' : '')),
     h('h4', null, 'ORDEN DE LAS CIFRAS'),
     h('ol', null, v.labels.map((l) => h('li', null, l))),
-    h('div', { class: 'note' }, 'Ejemplo: identificador 6, verde (3), modificador 2 → 6+3+2 = 11 → cifra 1. (Mod 10 = quedarse con las unidades.)'),
+    h('div', { class: 'note' }, 'Ejemplo: ID 6 (par), verde (3), MOD 2 → 6 + 3×2 + 2 = 14 → cifra 4. Con ID 7 (impar): 7 + 3×1 + 2 = 12 → cifra 2.'),
   ];
 }
 
@@ -108,23 +115,25 @@ export function expertPage(view, type) {
   return h('div', { class: 'manual', 'data-testid': 'manual' }, h('h3', null, `MANUAL DE DESACTIVACIÓN · ${MODULE_TITLES[type]}`), PAGES[type](view));
 }
 
+const abox = (label, value, active, big) => h('div', { class: `abox ${active ? 'active' : ''}` }, h('div', { class: 'k' }, label), h('div', { class: `v ${big ? 'word' : ''}` }, value));
+
 const ANALYST = {
-  cables: (v) => ['PARÁMETRO', v.param, 'Indícalo al experto con los dedos: 0 ó 1.'],
-  safe: (v) => ['PARÁMETRO', v.param, 'Número de 0 a 3. Muéstralo con los dedos al experto.'],
-  simon: (v) => ['INVERTIR', v.reverse ? 'SÍ' : 'NO', v.reverse ? 'La secuencia debe invertirse (muestra 1 con el dedo).' : 'No se invierte (muestra 0: puño cerrado).'],
-  circuit: (v) => ['INVERTIR OBJETIVO', v.invert ? 'SÍ' : 'NO', v.invert ? 'El estado objetivo se invierte (1).' : 'El objetivo no se invierte (0).'],
-  glyphs: (v) => ['INVERTIR ORDEN', v.reverse ? 'SÍ' : 'NO', v.reverse ? 'Hay que pulsar en orden inverso (1).' : 'Orden normal (0).'],
-  protocol: (v) => ['MODIFICADOR', v.modifier, 'Número de 0 a 9. Se suma a todas las cifras. Muéstralo con los dedos.'],
+  cables: (v) => ({ title: 'PARÁMETROS POR PASO', items: v.params.map((x, i) => abox(`PASO ${i + 1}`, x, i === v.step)), desc: `Uno por cada corte (0 ó 1). Se ilumina el paso actual (${Math.min(v.step + 1, v.params.length)}). Díselos al experto con los dedos cuando los pida.` }),
+  safe: (v) => ({ title: 'PARÁMETROS DE LA CAJA', items: v.params.map((p) => abox(p.key, p.value)), desc: 'A: 0–3 · B y C: 0–9. Muéstraselos al experto con los dedos (una cifra cada vez).' }),
+  simon: (v) => ({ title: 'TABLA E INVERSIÓN', items: [abox('TABLA', v.table, false, true), abox('INVERTIR', v.reverse ? 'SÍ' : 'NO', false, true)], desc: 'Dos datos: qué tabla de colores usa el experto (A o B) y si invierte el orden de la secuencia.' }),
+  circuit: (v) => ({ title: 'PILOTOS INVERTIDOS', items: v.flip.map((n) => abox('PILOTO', `P${n}`, true)), desc: 'Estos pilotos tienen el objetivo al revés. Indícaselos al experto uno a uno con los dedos.' }),
+  glyphs: (v) => ({ title: 'LISTA Y ORDEN', items: [abox('LISTA', v.list, false, true), abox('INVERTIR', v.reverse ? 'SÍ' : 'NO', false, true)], desc: 'Qué lista de prioridad usa el experto (A o B) y si el orden se invierte.' }),
+  protocol: (v) => ({ title: 'MODIFICADOR DE CADA CIFRA', items: v.mods.map((x, i) => abox(`CIFRA ${i + 1}`, x)), desc: `Un modificador (0–9) distinto para cada cifra. Orden de las cifras: ${v.labels.map((l, i) => `${i + 1}=${l.replace('MÓDULO ', 'M')}`).join(' · ')}.` }),
 };
 
 export function analystSheet(view, type) {
-  const [label, value, desc] = ANALYST[type](view);
+  const { title, items, desc } = ANALYST[type](view);
   return h('div', { class: 'panel screws sheet', 'data-testid': 'analyst' },
     h('div', { class: 'label' }, `FICHA TÉCNICA · ${MODULE_TITLES[type]}`),
-    h('div', { class: 'stamp', style: { margin: '12px 0 4px' } }, label),
-    h('div', { class: `big ${typeof value === 'string' ? 'word' : ''}`, 'data-testid': 'analyst-value' }, value),
-    h('div', { class: 'desc' }, desc),
-    h('div', { class: 'desc', style: { marginTop: '12px' } }, 'Solo puedes comunicar este dato al experto mediante gestos. No puedes tocar la bomba ni ver el manual.'));
+    h('div', { class: 'stamp', style: { margin: '12px 0 10px' } }, title),
+    h('div', { class: 'aboxes', 'data-testid': 'analyst-values' }, items),
+    h('div', { class: 'desc', style: { marginTop: '12px' } }, desc),
+    h('div', { class: 'desc', style: { marginTop: '10px' } }, 'Solo puedes comunicar estos datos al experto mediante gestos. No puedes tocar la bomba ni ver el manual.'));
 }
 
 /* ---------------- roles y gestos ---------------- */
@@ -149,9 +158,9 @@ export const ROLES = {
   },
   analyst: {
     name: 'ANALISTA', nick: 'EL ANALISTA', icon: '📊',
-    can: ['Tienes parámetros técnicos que el experto necesita.', 'Puedes oír a los demás.'],
+    can: ['Tienes varios datos técnicos por módulo (parámetros, tablas, pilotos, modificadores) que el experto necesita.', 'Puedes oír a los demás.'],
     cannot: ['Solo comunicas tus datos al experto mediante gestos.', 'No tocas la bomba ni ves el manual. No muestras tu pantalla.'],
-    tip: 'Sin tu parámetro el experto no sabe qué regla aplicar.',
+    tip: 'Cada dato tuyo cambia la respuesta: sin ti el experto no sabe qué variante de la regla aplicar.',
   },
 };
 

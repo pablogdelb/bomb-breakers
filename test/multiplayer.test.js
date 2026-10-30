@@ -7,7 +7,7 @@ import { Bot, fullRoom, sleep } from './helpers.js';
 import { solveModule, DIFFICULTIES } from '../server/engine/index.js';
 
 let g, gFast; // gFast: reloj acelerado (8 min -> 4.8 s) para probar el temporizador real
-test.before(async () => { g = await createGameServer({ port: 0, createLimit: 1000 }); gFast = await createGameServer({ port: 0, timeScale: 0.01, createLimit: 1000 }); });
+test.before(async () => { g = await createGameServer({ port: 0, createLimit: 1000 }); gFast = await createGameServer({ port: 0, timeScale: 0.008, createLimit: 1000 }); });
 test.after(async () => { await g.close(); await gFast.close(); });
 
 const matchOf = (host) => g.rooms.get(host.code).match;
@@ -153,7 +153,7 @@ test('temporizador del servidor: si nadie desactiva, ambos pierden por tiempo', 
   const { bots, host } = room;
   await startAndWait(room);
   const t0 = host.state.match;
-  assert.equal(t0.durationMs, 8 * 60000 * 0.01);
+  assert.equal(t0.durationMs, 10 * 60000 * 0.008);
   await host.until((b) => b.room.status === 'finished', 8000, 'tiempo agotado');
   assert.equal(host.state.match.winner, null);
   assert.equal(host.state.match.teams.red.status, 'timeout');
@@ -260,7 +260,7 @@ test('entradas inválidas y límites de peticiones', async () => {
 });
 
 test('configuración de dificultad: módulos, errores y tiempos según el documento', () => {
-  assert.deepEqual(['easy', 'normal', 'hard'].map((d) => DIFFICULTIES[d].minutes), [12, 10, 8]);
+  assert.deepEqual(['easy', 'normal', 'hard'].map((d) => DIFFICULTIES[d].minutes), [14, 12, 10]);
   assert.deepEqual(['easy', 'normal', 'hard'].map((d) => DIFFICULTIES[d].modules), [3, 4, 5]);
   assert.deepEqual(['easy', 'normal', 'hard'].map((d) => DIFFICULTIES[d].maxErrors), [4, 3, 3]);
 });

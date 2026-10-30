@@ -4,7 +4,7 @@ import { heroBomb } from './art.js';
 import { createModule } from './modules.js';
 import { expertPage, analystSheet, roleCard, gestureGuide, ROLES, MODULE_SHORT, MODULE_TITLES } from './manual.js';
 
-export const BUILD = '2026.10.30-coop4';
+export const BUILD = '2026.10.30-dificil1';
 export const TEAM_NAME = { red: 'EQUIPO ROJO', blue: 'EQUIPO AZUL' };
 const DIFF_NAME = { easy: 'FÁCIL · 12 min', normal: 'NORMAL · 10 min', hard: 'DIFÍCIL · 8 min' };
 const ROLE_ORDER = ['operator', 'expert', 'interpreter', 'analyst'];
@@ -135,7 +135,7 @@ const RULEBAR = {
   operator: 'Eres el CIEGO: tú manipulas la bomba. Escucha a tu intérprete.',
   expert: 'Eres el MUDO: solo gestos. Aplica el manual.',
   interpreter: 'Eres el SORDO: gestos al experto, voz al operador.',
-  analyst: 'Solo puedes comunicar tu dato al experto con gestos.',
+  analyst: 'Solo puedes comunicar tus datos al experto con gestos.',
 };
 
 export function createGame({ net }) {

@@ -12,7 +12,7 @@ const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json', '.webmanifest': 'application/manifest+json',
 };
-export const BUILD = '2026.10.30-coop2';
+export const BUILD = '2026.10.30-coop3';
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 export function createGameServer({ port = Number(process.env.PORT || 3000), host = '0.0.0.0', fixedSeed = null, timeScale, createLimit = 10 } = {}) {

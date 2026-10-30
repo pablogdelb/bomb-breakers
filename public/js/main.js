@@ -13,8 +13,9 @@ const net = new Net({
   onFx(f) { current.comp?.fx?.(f); },
   onLeft() { state = null; try { history.replaceState(null, '', '/'); } catch { /* */ } render(); },
   onError(m) {
-    if (current.name === 'home' && current.comp.error) current.comp.error(m);
-    else if (m.code !== 'resume_failed') toast(m.message || 'Error', true);
+    if (m.code === 'resume_failed') toast('Tu sala ya no existe (el servidor se reinició). Crea una sala nueva y volved a entrar.', true);
+    else if (current.name === 'home' && current.comp.error) current.comp.error(m);
+    else toast(m.message || 'Error', true);
   },
   onReplaced() { replaced = true; state = null; clear(root); root.append(h('div', { class: 'stack home' }, h('h2', null, 'SESIÓN ABIERTA EN OTRA PESTAÑA'),
     h('p', { class: 'dim' }, 'Este jugador se ha conectado desde otra ventana.'), h('button', { class: 'btn primary', onclick: () => location.reload() }, 'USAR ESTA VENTANA'))); },

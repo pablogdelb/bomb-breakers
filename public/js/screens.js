@@ -4,7 +4,7 @@ import { heroBomb } from './art.js';
 import { createModule } from './modules.js';
 import { expertPage, analystSheet, roleCard, gestureGuide, ROLES, MODULE_SHORT, MODULE_TITLES } from './manual.js';
 
-export const BUILD = '2026.10.30-coop2';
+export const BUILD = '2026.10.30-coop3';
 export const TEAM_NAME = { red: 'EQUIPO ROJO', blue: 'EQUIPO AZUL' };
 const DIFF_NAME = { easy: 'FÁCIL · 12 min', normal: 'NORMAL · 10 min', hard: 'DIFÍCIL · 8 min' };
 const ROLE_ORDER = ['operator', 'expert', 'interpreter', 'analyst'];
@@ -12,7 +12,7 @@ const ROLE_ORDER = ['operator', 'expert', 'interpreter', 'analyst'];
 export function toast(msg, bad = false) {
   const t = h('div', { class: `toast ${bad ? 'bad' : ''}` }, msg);
   document.body.append(t);
-  setTimeout(() => t.remove(), 3000);
+  setTimeout(() => t.remove(), bad ? 7000 : 3000);
 }
 export function banner(msg, kind = 'info') {
   const b = h('div', { class: `banner ${kind}` }, msg);
